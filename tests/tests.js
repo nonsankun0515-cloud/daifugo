@@ -237,6 +237,25 @@
     eq(S.turn, 2, 'P2が親');
   });
 
+  test('マイルール：救急車がオン、古い保存設定も更新される', () => {
+    ok(RU.MINE.kyukyusha, 'マイルールに救急車');
+    const old = Object.assign({}, RU.MINE, { kyukyusha: false });
+    eq(RU.migrate(old), RU.MINE, '古いマイルール → 今のマイルール');
+    const custom = Object.assign({}, RU.MINE, { kyukyusha: false, jokers: 2 });
+    eq(RU.migrate(custom).kyukyusha, false, '自分で変えた設定はそのまま');
+  });
+
+  test('救急車：99は砂嵐でしか止められない', () => {
+    const S = mk({ kyukyusha: true, fourStop: true, threeStop: true, sandstorm: true, eightCut: true, fiveSkip: true },
+      [['S9', 'H9', 'D5'], ['C4', 'D4', 'C3', 'H3'], ['S3', 'D3', 'X1', 'D10']]);
+    play(S, 0, ['S9', 'H9']);
+    eq([req(S).kind, req(S).seat], ['stop', 2], '44・33のP1は止められず、砂嵐のP2に確認');
+    eq(E.stopOptions(S, 2).map((o) => o.kind), ['sand'], '砂嵐だけ');
+    E.apply(S, { type: 'nostop', seat: 2 });
+    eq(S.turn, 0, '止めなければ出した人が親');
+    eq(S.pile.length, 0, '流れた');
+  });
+
   test('救急車：99で流れる', () => {
     const S = mk({ kyukyusha: true }, [['S9', 'H9', 'D5'], ['C4', 'C10'], ['H3', 'D10']]);
     const ev = play(S, 0, ['S9', 'H9']);

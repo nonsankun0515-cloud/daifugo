@@ -15,7 +15,7 @@
   let store = {};
   try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { store = {}; }
   store.settings = Object.assign({}, DEFAULT_SETTINGS, store.settings || {});
-  store.rules = store.rules ? RU.normalize(store.rules) : Object.assign({}, RU.MINE);
+  store.rules = store.rules ? RU.migrate(store.rules) : Object.assign({}, RU.MINE);
   const settings = store.settings;
 
   function save() {
@@ -245,6 +245,7 @@
     cancelLoop();
     try {
       S = E.deserialize(store.match);
+      S.rules = RU.migrate(S.rules);
     } catch (e) {
       UI.toast('保存された対局を読み込めませんでした');
       return;

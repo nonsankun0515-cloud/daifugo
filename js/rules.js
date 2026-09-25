@@ -57,7 +57,7 @@
     { key: 'rokurokubi', cat: 'flow', type: 'bool', label: 'ろくろ首', def: false,
       desc: '6を2枚出すと8切りと同じ効果。止められるのは砂嵐だけ。' },
     { key: 'kyukyusha', cat: 'flow', type: 'bool', label: '救急車', def: false,
-      desc: '9を2枚出すと8切りと同じ効果。' },
+      desc: '9を2枚出すと8切りと同じ効果。止められるのは砂嵐だけ。' },
     { key: 'sandstorm', cat: 'flow', type: 'bool', label: '砂嵐', def: false,
       desc: '3を3枚。自分の番ならどんな場にも出せる最強の役で、場が流れる。8切り・ろくろ首も止められる（スキップは自分が飛ばされたときだけ）。' },
     { key: 'spade3', cat: 'flow', type: 'bool', label: 'スペ3返し', def: true,
@@ -135,11 +135,11 @@
     return o;
   }
 
-  // あなたのルール（2026-09 に聞き取り）
+  // あなたのルール（2026-09 に聞き取り。09-25 に救急車を追加）
   const MINE = {
     jokers: 1, sequence: true, seqCompare: 'lowest', exchange: true, firstLead: 'D3', nextLead: 'poorest', passLock: false,
     revolution: true, seqRevolution: 'off', jBack: true, twoBack: false, coup: false, omen: false, greatRevolution: false,
-    eightCut: true, rokurokubi: true, kyukyusha: false, sandstorm: true, spade3: true, fourStop: true, threeStop: true,
+    eightCut: true, rokurokubi: true, kyukyusha: true, sandstorm: true, spade3: true, fourStop: true, threeStop: true,
     stopScope: 'single', luckySeven: false,
     fiveSkip: true, kingSkip: true, sevenPass: true, nineBack: false, tenDiscard: true, queenBomber: true, aceTake: true,
     sixNine: true, nineSix: true, nineReverse: false, downNumber: false, seqEffects: 'eight',
@@ -147,6 +147,8 @@
     forbidJoker: true, forbidTwo: true, forbidEight: false, forbidSpade3: false,
     miyakoOchi: false, gekokujo: false, tenpen: false,
   };
+  // 以前のマイルール。保存されている設定がこれと同じなら、今のマイルールに置き換える
+  const OLD_MINES = [Object.assign({}, MINE, { kyukyusha: false })];
 
   function only(on, base) {
     const o = Object.assign(defaults(), base || {});
@@ -189,5 +191,12 @@
     return null;
   }
 
-  D.Rules = { CATEGORIES, RULES, BY_KEY, PRESETS, MINE, defaults, normalize, presetMatching };
+  /** 保存された設定を読み込む。古いマイルールのままなら今のマイルールにする */
+  function migrate(saved) {
+    const r = normalize(saved);
+    if (OLD_MINES.some((old) => RULES.every((d) => old[d.key] === r[d.key]))) return Object.assign({}, MINE);
+    return r;
+  }
+
+  D.Rules = { CATEGORIES, RULES, BY_KEY, PRESETS, MINE, defaults, normalize, presetMatching, migrate };
 })();
