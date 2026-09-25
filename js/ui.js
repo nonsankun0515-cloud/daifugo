@@ -450,7 +450,7 @@
   }
 
   function renderHud() {
-    $('g-gameno').textContent = '第' + UI.S.gameNo + 'ゲーム' + (UI.roomCode ? '・部屋 ' + UI.roomCode : '');
+    $('g-gameno').innerHTML = '第' + UI.S.gameNo + 'ゲーム' + (UI.roomCode ? '<small>部屋 ' + esc(UI.roomCode) + '</small>' : '');
   }
 
   /** 画面の広さに合わせて、手札と場のカードをできるだけ大きくする */
