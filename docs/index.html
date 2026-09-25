@@ -451,6 +451,95 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .wait-big { font-size: 16px; font-weight: 700; color: var(--gold-light); margin: 0; }
 .code-inline { font-family: var(--font-num); letter-spacing: 0.15em; color: var(--gold-light); }
 
+/* ───────── チャット（オンライン対戦のときだけ） ───────── */
+.chat-btn { position: relative; }
+.chat-btn .badge {
+  position: absolute;
+  right: -6px; top: -6px;
+  min-width: 19px; height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font: 700 11px/1 var(--font-ui);
+  color: #fff;
+  background: #d8394f;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+.chat {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--kb, 0px));
+  width: min(380px, calc(100vw - 32px));
+  height: min(520px, 62vh);
+  z-index: 48;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(34, 27, 21, 0.98), rgba(16, 12, 9, 0.98));
+  border: 1px solid rgba(217, 178, 90, 0.55);
+  border-radius: 16px;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: pop 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chat header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--lacquer-line); }
+.chat header h3 { margin: 0; font-family: var(--font-display); font-weight: 800; letter-spacing: 0.1em; color: var(--gold-light); font-size: 17px; }
+.chat-note { flex: 1; font-size: 11px; color: var(--ivory-dim); }
+.chat-list { list-style: none; margin: 0; padding: 10px 12px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
+.chat-list li { display: flex; flex-direction: column; align-items: flex-start; max-width: 85%; }
+.chat-list li.me { align-self: flex-end; align-items: flex-end; }
+.chat-list .who { font-size: 11px; font-weight: 700; margin: 0 4px 2px; }
+.chat-list .who time { font-weight: 500; color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.chat-list .msg {
+  font-size: 14.5px;
+  line-height: 1.45;
+  padding: 7px 11px;
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.chat-list li.me .msg { border-radius: 14px 14px 4px 14px; background: linear-gradient(180deg, #e8c66e, #b98e34); color: #241a07; border-color: transparent; }
+.chat-list .empty { align-self: center; max-width: none; color: var(--muted); font-size: 13px; margin-top: 24px; }
+.chat-presets { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.chat-presets::-webkit-scrollbar { display: none; }
+.chat-presets button {
+  flex: none;
+  font: 700 13px/1 var(--font-ui);
+  padding: 8px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(217, 178, 90, 0.45);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ivory);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chat-presets button:active { background: rgba(217, 178, 90, 0.25); }
+.chat-form { display: flex; gap: 8px; padding: 8px 12px 12px; }
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  font: 500 16px var(--font-ui);
+  color: var(--ivory);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(217, 178, 90, 0.45);
+  border-radius: 12px;
+  padding: 10px 12px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.chat-form .btn { flex: none; }
+.bubble.talk { width: max-content; max-width: 180px; white-space: normal; overflow-wrap: anywhere; text-align: center; animation-duration: calc(3.4s * var(--speed)); background: #fff9e6; }
+@media (max-width: 560px) {
+  .chat {
+    left: 8px; right: 8px;
+    width: auto;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px) + var(--kb, 0px));
+    height: min(460px, 58vh);
+  }
+}
+
 /* ───────── 対局画面（遊ぶ場所はフェルトの内側） ───────── */
 .game {
   display: flex;
@@ -1010,6 +1099,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
           <div class="hud-center" id="g-gameno"></div>
         </div>
         <div class="hud-right">
+          <button class="icon-btn chat-btn" id="g-chat" type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" id="g-chat-badge" hidden></span></button>
           <button class="icon-btn" id="g-log" type="button" aria-label="履歴"></button>
           <button class="icon-btn" id="g-sound" type="button" aria-label="効果音"></button>
         </div>
@@ -1041,6 +1131,20 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       </div>
     </div>
   </section>
+
+  <aside class="chat" id="chat" hidden aria-label="チャット">
+    <header>
+      <h3>チャット</h3>
+      <span class="chat-note">この部屋の人だけに届きます</span>
+      <button class="icon-btn" id="chat-close" type="button" aria-label="チャットを閉じる"></button>
+    </header>
+    <ol class="chat-list" id="chat-list" aria-live="polite"></ol>
+    <div class="chat-presets" id="chat-presets"></div>
+    <form class="chat-form" id="chat-form" autocomplete="off">
+      <input id="chat-input" type="text" maxlength="60" placeholder="メッセージ（60文字まで）" enterkeyhint="send" aria-label="メッセージ">
+      <button class="btn btn-gold btn-sm" id="chat-send" type="submit">送信</button>
+    </form>
+  </aside>
 
   <div id="fx" aria-hidden="true"></div>
   <div id="overlay" hidden></div>
@@ -3146,6 +3250,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     restart: '<path d="M4 12a8 8 0 108-8"/><path d="M4 4v5h5"/>',
     home: '<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>',
     check: '<path d="M5 12l5 5 9-10"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>',
   };
   function icon(name, size) {
     const s = size || 20;
@@ -3383,6 +3488,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(t + i * 0.12, f, 0.35, 'triangle', 0.1));
     },
     select() { const t = ctx.currentTime; noise(t, 0.03, 4200, 2, 0.12); },
+    chat() { const t = ctx.currentTime; tone(t, 988, 0.12, 'sine', 0.06); tone(t + 0.08, 1480, 0.16, 'sine', 0.05); },
     error() { const t = ctx.currentTime; tone(t, 220, 0.14, 'triangle', 0.08, 180); },
   };
 
@@ -3973,15 +4079,17 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     return Promise.all(jobs);
   }
 
-  function bubble(seat, text, alert) {
+  function bubble(seat, text, alert, kind) {
     const host = seat === UI.human ? $('me-id') : UI.seatEls[seat];
     if (!host) return;
+    // チャットの吹き出しは 'talk'（チャット欄の .chat と名前がぶつからないように）
+    if (kind === 'chat') { const old = host.querySelector(':scope > .bubble.talk'); if (old) old.remove(); }
     const b = document.createElement('div');
-    b.className = 'bubble' + (alert ? ' alert' : '');
+    b.className = 'bubble' + (alert ? ' alert' : '') + (kind === 'chat' ? ' talk' : '');
     b.textContent = text;
     if (seat === UI.human) { b.style.left = '40px'; b.style.top = '-6px'; }
     host.appendChild(b);
-    setTimeout(() => b.remove(), 1400 * UI.speed + 100);
+    setTimeout(() => b.remove(), (kind === 'chat' ? 3500 : 1400) * UI.speed + 100);
   }
 
   let toastTimer = 0;
@@ -5340,9 +5448,10 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     if (!name) { UI.toast('名前を入れてください'); return; }
     leaveRoom(true);
     const o = { code, conn: null, view: null, queue: [], busy: false, waiting: false, sig: '', waitingSig: '', sentSig: '',
-      seat: -1, gameShown: false, resultsOpen: false, status: 'connecting' };
+      seat: -1, gameShown: false, resultsOpen: false, status: 'connecting', chat: [], unread: 0 };
     online = o;
     UI.roomCode = code;
+    updateChatButtons();
     o.conn = D.Net.connect(code, {
       onOpen: () => { if (online === o) o.conn.send({ t: 'hello', cid: D.Net.clientId(), name }); },
       onMessage: (m) => { if (online === o) onlineMessage(o, m); },
@@ -5351,6 +5460,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         if (online !== o) return;
         online = null;
         UI.roomCode = null;
+        closeChat();
+        updateChatButtons();
         if (c === 4000) UI.toast('ほかの画面でこの部屋に入ったので、こちらは切断しました', 4000);
         showScreen('online');
       },
@@ -5366,6 +5477,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     online = null;
     UI.roomCode = null;
     UI.seatInfo = null;
+    closeChat();
+    updateChatButtons();
     cancelHuman();
     o.conn.send({ t: 'leave' });
     setTimeout(() => o.conn.close(), 200);
@@ -5381,6 +5494,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 
   function onlineMessage(o, m) {
     if (m.t === 'error') { UI.toast(m.error, 3000); SND.play('error'); return; }
+    if (m.t === 'chat') { onChatItem(o, m.item, false); return; }
+    if (m.t === 'chatlog') { o.chat = Array.isArray(m.items) ? m.items.slice(-60) : []; renderChat(); updateChatButtons(); return; }
     if (m.t !== 'room') return;
     // 自分の入力待ちの間に来た「接続状態だけ」の更新は、入力を邪魔せずに反映する
     if (o.waiting && m.phase === 'playing' && viewSig(m) === o.waitingSig && !(m.events && m.events.length)) {
@@ -5535,6 +5650,114 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     }
   }
 
+  // ── チャット（部屋の人だけに届く。サーバーは直近30件だけ持つ） ──
+  const CHAT_PRESETS = ['よろしく！', 'ナイス！', 'やられた〜', '革命きた！', 'ありがとう', 'もう1回！', 'ちょっと待って', '強すぎ😂'];
+  const CHAT_COLORS = ['#f3dd9b', '#8ecae6', '#f4a3b5', '#a7d98b', '#c9b3ff', '#f6bd7c'];
+
+  function chatColor(pid) {
+    let h = 0;
+    for (const ch of String(pid || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return CHAT_COLORS[h % CHAT_COLORS.length];
+  }
+  function myPid() {
+    const v = online && online.view;
+    const me = v && v.members && v.members.find((m) => m.you);
+    return me ? me.pid : null;
+  }
+  function hhmm(t) {
+    const d = new Date(t);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function updateChatButtons() {
+    const n = online ? online.unread : 0;
+    $('g-chat').hidden = !online;
+    $('g-chat-badge').hidden = !n;
+    $('g-chat-badge').textContent = n > 9 ? '9+' : String(n);
+    $('g-chat').setAttribute('aria-label', n ? 'チャット（未読' + n + '件）' : 'チャット');
+    const lb = $('on-chat');
+    if (lb) lb.textContent = n ? 'チャット（未読 ' + n + '）' : 'チャット';
+  }
+
+  function openChat() {
+    if (!online) return;
+    $('log').hidden = true;
+    $('chat').hidden = false;
+    online.unread = 0;
+    updateChatButtons();
+    renderChat();
+    if (matchMedia('(pointer: fine)').matches) setTimeout(() => $('chat-input').focus(), 30);
+  }
+  function closeChat() { $('chat').hidden = true; }
+
+  function renderChat() {
+    if (!online || $('chat').hidden) return;
+    const list = $('chat-list');
+    const me = myPid();
+    if (!online.chat.length) {
+      list.innerHTML = '<li class="empty">まだメッセージはありません。<br>下のボタンからひとこと送れます。</li>';
+      return;
+    }
+    list.innerHTML = online.chat.map((it) => {
+      const mine = it.pid === me;
+      return '<li class="' + (mine ? 'me' : '') + '"><span class="who" style="color:' + chatColor(it.pid) + '">' + esc(mine ? 'あなた' : it.name) +
+        '<time>' + hhmm(it.at) + '</time></span><span class="msg">' + esc(it.text) + '</span></li>';
+    }).join('');
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function onChatItem(o, item, fromLog) {
+    if (!item || typeof item.text !== 'string') return;
+    o.chat.push(item);
+    if (o.chat.length > 60) o.chat.splice(0, o.chat.length - 60);
+    const mine = item.pid === myPid();
+    if (!mine && $('chat').hidden) o.unread++;
+    updateChatButtons();
+    renderChat();
+    if (fromLog) return;
+    if (!mine) SND.play('chat');
+    // 対局中は、送った人の席の上に吹き出しで出す
+    if (o.gameShown && !$('scr-game').hidden && S) {
+      let seat = mine ? UI.human : item.seat;
+      if (!(seat >= 0) || !S.players[seat] || S.players[seat].name !== item.name) seat = S.players.findIndex((p) => p.name === item.name);
+      const short = Array.from(item.text).length > 22 ? Array.from(item.text).slice(0, 21).join('') + '…' : item.text;
+      if (seat >= 0) UI.bubble(seat, short, false, 'chat');
+    }
+  }
+
+  function sendChat(text) {
+    if (!online) return false;
+    text = String(text || '').trim();
+    if (!text) return false;
+    if (!online.conn.send({ t: 'chat', text })) { UI.toast('通信が切れています。つながり直してから送ってください'); return false; }
+    return true;
+  }
+
+  function chatInit() {
+    $('chat-close').innerHTML = A.icon('close');
+    $('g-chat').querySelector('.ic-slot').innerHTML = A.icon('chat');
+    $('g-chat').addEventListener('click', () => ($('chat').hidden ? openChat() : closeChat()));
+    $('chat-close').addEventListener('click', closeChat);
+    $('chat-presets').innerHTML = CHAT_PRESETS.map((p) => '<button type="button">' + esc(p) + '</button>').join('');
+    $('chat-presets').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => sendChat(b.textContent)));
+    $('chat-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = $('chat-input');
+      if (sendChat(input.value)) input.value = '';
+    });
+    // スマホのキーボードでチャット欄が隠れないように、キーボードの高さだけ持ち上げる
+    const vv = globalThis.visualViewport;
+    if (vv) {
+      const fit = () => {
+        const kb = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb', Math.round(kb) + 'px');
+      };
+      vv.addEventListener('resize', fit);
+      vv.addEventListener('scroll', fit);
+    }
+    updateChatButtons();
+  }
+
   function renderOnline() {
     const wrap = $('online-wrap');
     const o = online;
@@ -5606,13 +5829,18 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       panel.appendChild(rr);
       box.appendChild(panel);
       $('on-actions').innerHTML = '<button class="btn btn-gold btn-lg" type="button" id="on-start">この部屋で始める</button>' +
+        '<button class="btn btn-ghost" type="button" id="on-chat">チャット</button>' +
         '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
       $('on-start').addEventListener('click', () => { SND.unlock(); o.conn.send({ t: 'start', rules: store.rules }); $('on-start').disabled = true; });
     } else {
       box.innerHTML = '<h3 class="sect-title">設定</h3><div class="card-panel"><div class="row"><div class="row-text"><div class="row-name">' + n + '人で対戦</div>' +
         '<div class="row-desc">ルールと人数はホストが決めます。AIの強さ：' + (v.settings.aiLevel === 'easy' ? 'やさしい' : 'ふつう') + '</div></div></div></div>';
-      $('on-actions').innerHTML = '<p class="wait-big">ホストが始めるのを待っています…</p><button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
+      $('on-actions').innerHTML = '<p class="wait-big">ホストが始めるのを待っています…</p>' +
+        '<button class="btn btn-ghost" type="button" id="on-chat">チャット</button>' +
+        '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
     }
+    $('on-chat').addEventListener('click', openChat);
+    updateChatButtons();
     $('on-leave').addEventListener('click', () => confirmLeave(false));
   }
 
@@ -5647,13 +5875,14 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     $('btn-resume').addEventListener('click', () => { SND.unlock(); resumeMatch(); });
     $('btn-rules').addEventListener('click', () => showScreen('rules'));
     $('btn-online').addEventListener('click', () => { SND.unlock(); openOnline(); });
+    chatInit();
     $('online-back').innerHTML = A.icon('back');
     $('online-back').addEventListener('click', () => { if (online) confirmLeave(false); else showScreen('title'); });
     $('rules-back').addEventListener('click', () => showScreen('title'));
     $('rules-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
     $('g-menu').addEventListener('click', openMenu);
     $('g-sound').addEventListener('click', () => { settings.sound = !settings.sound; save(); applySettings(); if (settings.sound) SND.play('select'); });
-    $('g-log').addEventListener('click', () => { const lg = $('log'); lg.hidden = !lg.hidden; if (!lg.hidden) UI.renderLog(); });
+    $('g-log').addEventListener('click', () => { const lg = $('log'); lg.hidden = !lg.hidden; if (!lg.hidden) { closeChat(); UI.renderLog(); } });
     $('log-close').addEventListener('click', () => { $('log').hidden = true; });
 
     document.addEventListener('keydown', (e) => {

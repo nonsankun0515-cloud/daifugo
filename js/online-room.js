@@ -16,6 +16,19 @@
     return String(name || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 8);
   }
 
+  const CHAT_MAX = 60; // 1通の長さ（文字）
+  const CHAT_KEEP = 30; // 部屋に残す件数
+  const CHAT_BURST = 6; // 10秒あたりに送れる数
+  function cleanChat(text) {
+    const s = String(text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+    return Array.from(s).slice(0, CHAT_MAX).join('');
+  }
+  // チャットで見せる公開ID（再接続用のIDは他の人に見せない）
+  function pidOf(m) {
+    if (!m.pid) m.pid = Math.random().toString(36).slice(2, 8);
+    return m.pid;
+  }
+
   class RoomCore {
     constructor(code) {
       this.code = code;
@@ -27,12 +40,15 @@
       this.lastEvents = [];
       this.rev = 0;
       this.updatedAt = 0;
+      this.chatLog = [];
+      this.chatSeq = 0;
     }
 
     toJSON() {
       return {
         code: this.code, members: this.members, settings: this.settings, phase: this.phase, seats: this.seats,
         S: this.S ? E.serialize(this.S) : null, lastEvents: this.lastEvents, rev: this.rev, updatedAt: this.updatedAt,
+        chatLog: this.chatLog, chatSeq: this.chatSeq,
       };
     }
 
@@ -40,7 +56,25 @@
       const r = new RoomCore(o.code);
       Object.assign(r, o);
       r.S = o.S ? E.deserialize(o.S) : null;
+      if (!Array.isArray(r.chatLog)) r.chatLog = [];
+      if (!r.chatSeq) r.chatSeq = r.chatLog.length ? r.chatLog[r.chatLog.length - 1].id : 0;
       return r;
+    }
+
+    /** チャットを1通受け付ける（部屋にいる人だけ・長さと連投を制限） */
+    chat(cid, text, now) {
+      const m = this.member(cid);
+      if (!m) return { ok: false, error: '部屋にいません' };
+      text = cleanChat(text);
+      if (!text) return { ok: false, error: 'メッセージが空です' };
+      m.chatTimes = (m.chatTimes || []).filter((t) => now - t < 10000);
+      if (m.chatTimes.length >= CHAT_BURST) return { ok: false, error: '送りすぎです。少し待ってからどうぞ' };
+      m.chatTimes.push(now);
+      const item = { id: ++this.chatSeq, pid: pidOf(m), name: m.name, seat: this.phase === 'playing' ? this.seatOf(cid) : -1, text, at: now };
+      this.chatLog.push(item);
+      if (this.chatLog.length > CHAT_KEEP) this.chatLog.splice(0, this.chatLog.length - CHAT_KEEP);
+      this.updatedAt = now;
+      return { ok: true, item };
     }
 
     touch(now) { this.rev++; this.updatedAt = now || Date.now(); }
@@ -56,6 +90,7 @@
         m.connected = true;
         m.awaySince = 0;
         if (name) m.name = name;
+        pidOf(m);
         this.touch(now);
         return { ok: true };
       }
@@ -64,7 +99,9 @@
         const i = this.seats.findIndex((s) => s.type === 'ai');
         if (i < 0) return { ok: false, error: '満席です' };
         const nm = name || 'プレイヤー';
-        this.members.push({ cid, name: nm, connected: true, awaySince: 0 });
+        const nmb = { cid, name: nm, connected: true, awaySince: 0 };
+        pidOf(nmb);
+        this.members.push(nmb);
         this.seats[i] = { type: 'human', cid, name: nm, level: 'normal', robot: -1 };
         this.S.players[i].name = nm;
         this.S.players[i].human = true;
@@ -72,7 +109,9 @@
         return { ok: true };
       }
       if (this.members.length >= MAX_PLAYERS) return { ok: false, error: '満員です（6人まで）' };
-      this.members.push({ cid, name: name || 'プレイヤー' + (this.members.length + 1), connected: true, awaySince: 0 });
+      const nm = { cid, name: name || 'プレイヤー' + (this.members.length + 1), connected: true, awaySince: 0 };
+      pidOf(nm);
+      this.members.push(nm);
       this.settings.players = Math.max(this.settings.players, this.members.length);
       this.touch(now);
       return { ok: true };
@@ -214,7 +253,7 @@
         rev: this.rev,
         phase: this.phase,
         host: cid === hostCid,
-        members: this.members.map((m) => ({ name: m.name, connected: m.connected, host: m.cid === hostCid, you: m.cid === cid })),
+        members: this.members.map((m) => ({ pid: pidOf(m), name: m.name, connected: m.connected, host: m.cid === hostCid, you: m.cid === cid })),
         settings: this.settings,
       };
       if (this.phase === 'playing' && this.S) {
@@ -263,5 +302,5 @@
   }
 
   D.RoomCore = RoomCore;
-  D.Online = { ROBOT_NAMES, AWAY_GRACE, sanitize, filterEvents, cleanName };
+  D.Online = { ROBOT_NAMES, AWAY_GRACE, sanitize, filterEvents, cleanName, cleanChat, CHAT_MAX, CHAT_KEEP };
 })();

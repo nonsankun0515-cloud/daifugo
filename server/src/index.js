@@ -78,8 +78,21 @@ export class Room extends DurableObject {
         res = core.join(cid, msg.name, now);
         if (!res.ok) { this.sendError(ws, res.error); try { ws.close(4001, 'rejected'); } catch (e) { /* 無視 */ } return; }
         ws.serializeAttachment({ cid });
+        // 入った人（戻ってきた人）には、最近のチャットを渡す
+        try { ws.send(JSON.stringify({ t: 'chatlog', items: core.chatLog })); } catch (e) { /* 無視 */ }
       } else {
         if (!att.cid) { this.sendError(ws, '先に部屋に入ってください'); return; }
+        if (msg.t === 'chat') {
+          // チャットは対局の状態を変えないので、メッセージだけを全員に配る
+          const c = core.chat(att.cid, msg.text, now);
+          if (!c.ok) { this.sendError(ws, c.error); return; }
+          await this.persist();
+          const payload = JSON.stringify({ t: 'chat', item: c.item });
+          for (const other of this.ctx.getWebSockets()) {
+            if ((other.deserializeAttachment() || {}).cid) { try { other.send(payload); } catch (e) { /* 無視 */ } }
+          }
+          return;
+        }
         switch (msg.t) {
           case 'config': res = core.configure(att.cid, msg, now); break;
           case 'start': res = core.start(att.cid, msg.rules, now); withEvents = res.ok; break;

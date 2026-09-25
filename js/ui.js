@@ -569,15 +569,17 @@
     return Promise.all(jobs);
   }
 
-  function bubble(seat, text, alert) {
+  function bubble(seat, text, alert, kind) {
     const host = seat === UI.human ? $('me-id') : UI.seatEls[seat];
     if (!host) return;
+    // チャットの吹き出しは 'talk'（チャット欄の .chat と名前がぶつからないように）
+    if (kind === 'chat') { const old = host.querySelector(':scope > .bubble.talk'); if (old) old.remove(); }
     const b = document.createElement('div');
-    b.className = 'bubble' + (alert ? ' alert' : '');
+    b.className = 'bubble' + (alert ? ' alert' : '') + (kind === 'chat' ? ' talk' : '');
     b.textContent = text;
     if (seat === UI.human) { b.style.left = '40px'; b.style.top = '-6px'; }
     host.appendChild(b);
-    setTimeout(() => b.remove(), 1400 * UI.speed + 100);
+    setTimeout(() => b.remove(), (kind === 'chat' ? 3500 : 1400) * UI.speed + 100);
   }
 
   let toastTimer = 0;

@@ -80,6 +80,7 @@
           <div class="hud-center" id="g-gameno"></div>
         </div>
         <div class="hud-right">
+          <button class="icon-btn chat-btn" id="g-chat" type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" id="g-chat-badge" hidden></span></button>
           <button class="icon-btn" id="g-log" type="button" aria-label="履歴"></button>
           <button class="icon-btn" id="g-sound" type="button" aria-label="効果音"></button>
         </div>
@@ -111,6 +112,20 @@
       </div>
     </div>
   </section>
+
+  <aside class="chat" id="chat" hidden aria-label="チャット">
+    <header>
+      <h3>チャット</h3>
+      <span class="chat-note">この部屋の人だけに届きます</span>
+      <button class="icon-btn" id="chat-close" type="button" aria-label="チャットを閉じる"></button>
+    </header>
+    <ol class="chat-list" id="chat-list" aria-live="polite"></ol>
+    <div class="chat-presets" id="chat-presets"></div>
+    <form class="chat-form" id="chat-form" autocomplete="off">
+      <input id="chat-input" type="text" maxlength="60" placeholder="メッセージ（60文字まで）" enterkeyhint="send" aria-label="メッセージ">
+      <button class="btn btn-gold btn-sm" id="chat-send" type="submit">送信</button>
+    </form>
+  </aside>
 
   <div id="fx" aria-hidden="true"></div>
   <div id="overlay" hidden></div>

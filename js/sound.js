@@ -100,6 +100,7 @@
       [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(t + i * 0.12, f, 0.35, 'triangle', 0.1));
     },
     select() { const t = ctx.currentTime; noise(t, 0.03, 4200, 2, 0.12); },
+    chat() { const t = ctx.currentTime; tone(t, 988, 0.12, 'sine', 0.06); tone(t + 0.08, 1480, 0.16, 'sine', 0.05); },
     error() { const t = ctx.currentTime; tone(t, 220, 0.14, 'triangle', 0.08, 180); },
   };
 

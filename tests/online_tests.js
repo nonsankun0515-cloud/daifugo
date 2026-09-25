@@ -142,6 +142,29 @@
     eq(copy.S.phase, 'over', '読み込んだ部屋で最後まで');
   });
 
+  test('チャット：部屋の人だけ・長さと連投の制限・直近30件', () => {
+    const r = room(2);
+    const v = r.viewFor('host_00000001', false);
+    ok(v.members.every((m) => m.pid && !('cid' in m)), '公開IDだけを見せる（再接続用IDは見せない）');
+    ok(!r.chat('stranger_0001', 'やあ', T0).ok, '部屋にいない人は送れない');
+    ok(!r.chat('host_00000001', '   ', T0).ok, '空は送れない');
+    const long = r.chat('host_00000001', 'あ'.repeat(100), T0);
+    eq(Array.from(long.item.text).length, 60, '60文字で切る');
+    eq(long.item.pid, v.members[0].pid, '送った人の公開ID');
+    let sent = 1;
+    for (let i = 0; i < 10; i++) if (r.chat('host_00000001', 'れんとう' + i, T0 + i).ok) sent++;
+    eq(sent, 6, '10秒に6通まで');
+    ok(r.chat('host_00000001', 'また送れる', T0 + 11000).ok, '10秒たてば送れる');
+    for (let i = 0; i < 40; i++) r.chat('guest_00000001', 'ゲスト' + i, T0 + 20000 + i * 2000);
+    eq(r.chatLog.length, 30, '直近30件だけ残す');
+    const copy = D.RoomCore.fromJSON(JSON.parse(JSON.stringify(r.toJSON())));
+    eq(copy.chatLog.length, 30, '保存しても残る');
+    ok(copy.chat('guest_00000001', 'つづき', T0 + 200000).item.id > r.chatLog[29].id, '番号は続きから');
+    r.start('host_00000001', RU.MINE, T0 + 300000);
+    const c = r.chat('guest_00000001', '対局中', T0 + 300001);
+    eq(c.item.seat, 1, '対局中は席の番号つき');
+  });
+
   test('いろいろなルールで20部屋×3ゲーム（エラーなし）', () => {
     const rng = D.Cards.mulberry32(777);
     let games = 0;

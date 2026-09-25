@@ -259,6 +259,7 @@
     restart: '<path d="M4 12a8 8 0 108-8"/><path d="M4 4v5h5"/>',
     home: '<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>',
     check: '<path d="M5 12l5 5 9-10"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>',
   };
   function icon(name, size) {
     const s = size || 20;

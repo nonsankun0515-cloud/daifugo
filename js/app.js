@@ -759,9 +759,10 @@
     if (!name) { UI.toast('名前を入れてください'); return; }
     leaveRoom(true);
     const o = { code, conn: null, view: null, queue: [], busy: false, waiting: false, sig: '', waitingSig: '', sentSig: '',
-      seat: -1, gameShown: false, resultsOpen: false, status: 'connecting' };
+      seat: -1, gameShown: false, resultsOpen: false, status: 'connecting', chat: [], unread: 0 };
     online = o;
     UI.roomCode = code;
+    updateChatButtons();
     o.conn = D.Net.connect(code, {
       onOpen: () => { if (online === o) o.conn.send({ t: 'hello', cid: D.Net.clientId(), name }); },
       onMessage: (m) => { if (online === o) onlineMessage(o, m); },
@@ -770,6 +771,8 @@
         if (online !== o) return;
         online = null;
         UI.roomCode = null;
+        closeChat();
+        updateChatButtons();
         if (c === 4000) UI.toast('ほかの画面でこの部屋に入ったので、こちらは切断しました', 4000);
         showScreen('online');
       },
@@ -785,6 +788,8 @@
     online = null;
     UI.roomCode = null;
     UI.seatInfo = null;
+    closeChat();
+    updateChatButtons();
     cancelHuman();
     o.conn.send({ t: 'leave' });
     setTimeout(() => o.conn.close(), 200);
@@ -800,6 +805,8 @@
 
   function onlineMessage(o, m) {
     if (m.t === 'error') { UI.toast(m.error, 3000); SND.play('error'); return; }
+    if (m.t === 'chat') { onChatItem(o, m.item, false); return; }
+    if (m.t === 'chatlog') { o.chat = Array.isArray(m.items) ? m.items.slice(-60) : []; renderChat(); updateChatButtons(); return; }
     if (m.t !== 'room') return;
     // 自分の入力待ちの間に来た「接続状態だけ」の更新は、入力を邪魔せずに反映する
     if (o.waiting && m.phase === 'playing' && viewSig(m) === o.waitingSig && !(m.events && m.events.length)) {
@@ -954,6 +961,114 @@
     }
   }
 
+  // ── チャット（部屋の人だけに届く。サーバーは直近30件だけ持つ） ──
+  const CHAT_PRESETS = ['よろしく！', 'ナイス！', 'やられた〜', '革命きた！', 'ありがとう', 'もう1回！', 'ちょっと待って', '強すぎ😂'];
+  const CHAT_COLORS = ['#f3dd9b', '#8ecae6', '#f4a3b5', '#a7d98b', '#c9b3ff', '#f6bd7c'];
+
+  function chatColor(pid) {
+    let h = 0;
+    for (const ch of String(pid || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return CHAT_COLORS[h % CHAT_COLORS.length];
+  }
+  function myPid() {
+    const v = online && online.view;
+    const me = v && v.members && v.members.find((m) => m.you);
+    return me ? me.pid : null;
+  }
+  function hhmm(t) {
+    const d = new Date(t);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function updateChatButtons() {
+    const n = online ? online.unread : 0;
+    $('g-chat').hidden = !online;
+    $('g-chat-badge').hidden = !n;
+    $('g-chat-badge').textContent = n > 9 ? '9+' : String(n);
+    $('g-chat').setAttribute('aria-label', n ? 'チャット（未読' + n + '件）' : 'チャット');
+    const lb = $('on-chat');
+    if (lb) lb.textContent = n ? 'チャット（未読 ' + n + '）' : 'チャット';
+  }
+
+  function openChat() {
+    if (!online) return;
+    $('log').hidden = true;
+    $('chat').hidden = false;
+    online.unread = 0;
+    updateChatButtons();
+    renderChat();
+    if (matchMedia('(pointer: fine)').matches) setTimeout(() => $('chat-input').focus(), 30);
+  }
+  function closeChat() { $('chat').hidden = true; }
+
+  function renderChat() {
+    if (!online || $('chat').hidden) return;
+    const list = $('chat-list');
+    const me = myPid();
+    if (!online.chat.length) {
+      list.innerHTML = '<li class="empty">まだメッセージはありません。<br>下のボタンからひとこと送れます。</li>';
+      return;
+    }
+    list.innerHTML = online.chat.map((it) => {
+      const mine = it.pid === me;
+      return '<li class="' + (mine ? 'me' : '') + '"><span class="who" style="color:' + chatColor(it.pid) + '">' + esc(mine ? 'あなた' : it.name) +
+        '<time>' + hhmm(it.at) + '</time></span><span class="msg">' + esc(it.text) + '</span></li>';
+    }).join('');
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function onChatItem(o, item, fromLog) {
+    if (!item || typeof item.text !== 'string') return;
+    o.chat.push(item);
+    if (o.chat.length > 60) o.chat.splice(0, o.chat.length - 60);
+    const mine = item.pid === myPid();
+    if (!mine && $('chat').hidden) o.unread++;
+    updateChatButtons();
+    renderChat();
+    if (fromLog) return;
+    if (!mine) SND.play('chat');
+    // 対局中は、送った人の席の上に吹き出しで出す
+    if (o.gameShown && !$('scr-game').hidden && S) {
+      let seat = mine ? UI.human : item.seat;
+      if (!(seat >= 0) || !S.players[seat] || S.players[seat].name !== item.name) seat = S.players.findIndex((p) => p.name === item.name);
+      const short = Array.from(item.text).length > 22 ? Array.from(item.text).slice(0, 21).join('') + '…' : item.text;
+      if (seat >= 0) UI.bubble(seat, short, false, 'chat');
+    }
+  }
+
+  function sendChat(text) {
+    if (!online) return false;
+    text = String(text || '').trim();
+    if (!text) return false;
+    if (!online.conn.send({ t: 'chat', text })) { UI.toast('通信が切れています。つながり直してから送ってください'); return false; }
+    return true;
+  }
+
+  function chatInit() {
+    $('chat-close').innerHTML = A.icon('close');
+    $('g-chat').querySelector('.ic-slot').innerHTML = A.icon('chat');
+    $('g-chat').addEventListener('click', () => ($('chat').hidden ? openChat() : closeChat()));
+    $('chat-close').addEventListener('click', closeChat);
+    $('chat-presets').innerHTML = CHAT_PRESETS.map((p) => '<button type="button">' + esc(p) + '</button>').join('');
+    $('chat-presets').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => sendChat(b.textContent)));
+    $('chat-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = $('chat-input');
+      if (sendChat(input.value)) input.value = '';
+    });
+    // スマホのキーボードでチャット欄が隠れないように、キーボードの高さだけ持ち上げる
+    const vv = globalThis.visualViewport;
+    if (vv) {
+      const fit = () => {
+        const kb = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb', Math.round(kb) + 'px');
+      };
+      vv.addEventListener('resize', fit);
+      vv.addEventListener('scroll', fit);
+    }
+    updateChatButtons();
+  }
+
   function renderOnline() {
     const wrap = $('online-wrap');
     const o = online;
@@ -1025,13 +1140,18 @@
       panel.appendChild(rr);
       box.appendChild(panel);
       $('on-actions').innerHTML = '<button class="btn btn-gold btn-lg" type="button" id="on-start">この部屋で始める</button>' +
+        '<button class="btn btn-ghost" type="button" id="on-chat">チャット</button>' +
         '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
       $('on-start').addEventListener('click', () => { SND.unlock(); o.conn.send({ t: 'start', rules: store.rules }); $('on-start').disabled = true; });
     } else {
       box.innerHTML = '<h3 class="sect-title">設定</h3><div class="card-panel"><div class="row"><div class="row-text"><div class="row-name">' + n + '人で対戦</div>' +
         '<div class="row-desc">ルールと人数はホストが決めます。AIの強さ：' + (v.settings.aiLevel === 'easy' ? 'やさしい' : 'ふつう') + '</div></div></div></div>';
-      $('on-actions').innerHTML = '<p class="wait-big">ホストが始めるのを待っています…</p><button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
+      $('on-actions').innerHTML = '<p class="wait-big">ホストが始めるのを待っています…</p>' +
+        '<button class="btn btn-ghost" type="button" id="on-chat">チャット</button>' +
+        '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
     }
+    $('on-chat').addEventListener('click', openChat);
+    updateChatButtons();
     $('on-leave').addEventListener('click', () => confirmLeave(false));
   }
 
@@ -1066,13 +1186,14 @@
     $('btn-resume').addEventListener('click', () => { SND.unlock(); resumeMatch(); });
     $('btn-rules').addEventListener('click', () => showScreen('rules'));
     $('btn-online').addEventListener('click', () => { SND.unlock(); openOnline(); });
+    chatInit();
     $('online-back').innerHTML = A.icon('back');
     $('online-back').addEventListener('click', () => { if (online) confirmLeave(false); else showScreen('title'); });
     $('rules-back').addEventListener('click', () => showScreen('title'));
     $('rules-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
     $('g-menu').addEventListener('click', openMenu);
     $('g-sound').addEventListener('click', () => { settings.sound = !settings.sound; save(); applySettings(); if (settings.sound) SND.play('select'); });
-    $('g-log').addEventListener('click', () => { const lg = $('log'); lg.hidden = !lg.hidden; if (!lg.hidden) UI.renderLog(); });
+    $('g-log').addEventListener('click', () => { const lg = $('log'); lg.hidden = !lg.hidden; if (!lg.hidden) { closeChat(); UI.renderLog(); } });
     $('log-close').addEventListener('click', () => { $('log').hidden = true; });
 
     document.addEventListener('keydown', (e) => {
