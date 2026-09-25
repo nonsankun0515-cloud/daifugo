@@ -4,10 +4,11 @@ import { DurableObject } from 'cloudflare:workers';
 import '../../js/cards.js';
 import '../../js/rules.js';
 import '../../js/engine.js';
+import '../../js/rating.js';
 import '../../js/ai.js';
 import '../../js/online-room.js';
 
-const { RoomCore } = globalThis.DFG;
+const { RoomCore, Rating } = globalThis.DFG;
 
 // 接続を受け付けるページ（公開アプリ版と開発用）
 const ALLOWED_ORIGINS = new Set([
@@ -75,7 +76,7 @@ export class Room extends DurableObject {
         for (const other of this.ctx.getWebSockets()) {
           if (other !== ws && (other.deserializeAttachment() || {}).cid === cid) { try { other.close(4000, 'replaced'); } catch (e) { /* 無視 */ } }
         }
-        res = core.join(cid, msg.name, now);
+        res = core.join(cid, msg.name, now, await this.lookupRating(cid));
         if (!res.ok) { this.sendError(ws, res.error); try { ws.close(4001, 'rejected'); } catch (e) { /* 無視 */ } return; }
         ws.serializeAttachment({ cid });
         // 入った人（戻ってきた人）には、最近のチャットを渡す
@@ -98,6 +99,7 @@ export class Room extends DurableObject {
           case 'start': res = core.start(att.cid, msg.rules, now); withEvents = res.ok; break;
           case 'action': res = core.act(att.cid, msg.action, now); withEvents = res.ok; break;
           case 'next': res = core.next(att.cid, now); withEvents = res.ok; break;
+          case 'lobby': res = core.toLobby(att.cid, now); break;
           case 'leave': core.leave(att.cid, now); ws.serializeAttachment({ cid: null }); try { ws.close(1000, 'bye'); } catch (e) { /* 無視 */ } break;
           default: return;
         }
@@ -110,6 +112,7 @@ export class Room extends DurableObject {
       this.sendView(ws, false);
       return;
     }
+    await this.flushRatings();
     await this.persist();
     this.broadcast(withEvents);
     await this.schedule();
@@ -135,6 +138,7 @@ export class Room extends DurableObject {
     const now = Date.now();
     const moved = this.core.connectedHumans() > 0 && this.core.aiStep(now);
     if (moved) {
+      await this.flushRatings();
       await this.persist();
       this.broadcast(true);
     } else if (this.ctx.getWebSockets().length === 0 && now - this.core.updatedAt > DAY - 60000) {
@@ -144,6 +148,30 @@ export class Room extends DurableObject {
       return;
     }
     await this.schedule();
+  }
+
+  // ── レート（全部屋で共通の Ratings に保存） ──
+  ratings() { return this.env.RATINGS.get(this.env.RATINGS.idFromName('global')); }
+
+  async lookupRating(cid) {
+    try { return await this.ratings().lookup(cid); } catch (e) { console.error('rating lookup', e); return null; }
+  }
+
+  /** 部屋で決まったレート変動を保存する（失敗したら次の機会にもう一度） */
+  async flushRatings() {
+    const core = this.core;
+    if (!core || !core.ratingOut.length) return;
+    const out = core.ratingOut.slice();
+    try {
+      const saved = await this.ratings().record(out);
+      core.ratingOut.splice(0, out.length);
+      for (const r of saved) {
+        const m = core.member(r.cid);
+        if (m) { m.rating = r.r; m.matches = r.n; }
+      }
+    } catch (e) {
+      console.error('rating record', e);
+    }
   }
 
   async schedule() {
@@ -169,5 +197,37 @@ export class Room extends DurableObject {
 
   broadcast(withEvents) {
     for (const ws of this.ctx.getWebSockets()) this.sendView(ws, withEvents);
+  }
+}
+
+/** オンライン対戦のレート（端末ごと。キーは再接続用IDのハッシュで、IDそのものは保存しない） */
+export class Ratings extends DurableObject {
+  async key(cid) {
+    const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('daifugo-rating:' + cid));
+    return 'r:' + Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async lookup(cid) {
+    if (typeof cid !== 'string' || !cid) return null;
+    const v = await this.ctx.storage.get(await this.key(cid));
+    return v ? { r: v.r, n: v.n } : { r: Rating.START, n: 0 };
+  }
+
+  /** list: [{ cid, delta }] → [{ cid, r, n }] */
+  async record(list) {
+    const out = [];
+    for (const it of Array.isArray(list) ? list.slice(0, 12) : []) {
+      const delta = Math.round(Number(it && it.delta));
+      if (typeof it.cid !== 'string' || !it.cid || !Number.isFinite(delta) || Math.abs(delta) > 400) continue;
+      const k = await this.key(it.cid);
+      const v = (await this.ctx.storage.get(k)) || { r: Rating.START, n: 0, best: Rating.START };
+      v.r += delta;
+      v.n += 1;
+      v.best = Math.max(v.best || Rating.START, v.r);
+      v.at = Date.now();
+      await this.ctx.storage.put(k, v);
+      out.push({ cid: it.cid, r: v.r, n: v.n });
+    }
+    return out;
   }
 }

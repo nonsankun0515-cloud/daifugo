@@ -445,6 +445,11 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .member .mname { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member .mname small { font-weight: 500; color: var(--ivory-dim); margin-left: 4px; }
 .member.ai .mname { color: var(--ivory-dim); font-weight: 500; }
+.rt-chip { font-family: var(--font-num); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--gold-light); min-width: 3em; text-align: right; }
+.online-rate { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 10px; padding: 4px 0 2px; font-size: 12px; color: var(--ivory-dim); }
+.online-rate .lbl { font-weight: 700; color: var(--gold); letter-spacing: 0.14em; }
+.online-rate b { font-family: var(--font-num); font-size: 26px; font-weight: 900; color: var(--gold-light); line-height: 1; }
+.online-rate .sub { font-size: 11px; color: var(--muted); }
 .host-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; color: #241a07; background: linear-gradient(180deg, #fbe7a4, #d6a93f); }
 .lobby-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
 .online-wait { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 0; text-align: center; }
@@ -943,8 +948,158 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .res-row .pt small { color: var(--ivory-dim); font-family: var(--font-ui); font-weight: 500; font-size: 11px; margin-left: 4px; }
 .menu-list { display: flex; flex-direction: column; gap: 10px; }
 .menu-list .btn { width: 100%; }
-.rule-summary { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 4px 0 8px; }
-.rule-summary span { font-size: 12.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid rgba(217, 178, 90, 0.35); background: rgba(255, 255, 255, 0.04); }
+
+/* ───────── 得点・試合結果・レート ───────── */
+.pos { color: #8fdcaa; }
+.neg { color: #f39a9a; }
+.zero { color: var(--ivory-dim); }
+.book-body b.pos, .book-body b.neg { color: inherit; }
+.book-body b.pos { color: #8fdcaa; }
+.book-body b.neg { color: #f39a9a; }
+.sc { font-family: var(--font-num); font-weight: 700; font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.seat .nmrow { display: flex; align-items: baseline; gap: 5px; max-width: 100%; }
+.seat .nmrow .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.me-id .sc { font-size: 14px; flex: none; }
+.hud-center .of { font-size: 0.78em; opacity: 0.85; margin-left: 1px; }
+.hud-center .rated-tag { color: var(--gold); font-family: var(--font-ui); font-weight: 700; letter-spacing: 0.14em; }
+.res-row.fin { grid-template-columns: 30px 1fr auto; }
+.res-row .nm em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--gold); margin-left: 6px; letter-spacing: 0.08em; }
+.res-row .nm small.rt { color: var(--ivory-dim); }
+.res-row .pt.big { font-size: 21px; }
+.res-row .pt.big small { font-size: 11px; margin-left: 2px; }
+.rate-box {
+  margin: 14px 0 4px;
+  padding: 12px 14px 10px;
+  border-radius: 14px;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 0%, rgba(217, 178, 90, 0.24), rgba(217, 178, 90, 0.04) 72%);
+  border: 1px solid rgba(217, 178, 90, 0.55);
+}
+.rate-lbl { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; color: var(--gold); }
+.rate-nums { display: flex; align-items: baseline; justify-content: center; gap: 10px; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.rate-nums .old { font-size: 18px; color: var(--ivory-dim); }
+.rate-nums .arrow { color: var(--gold); font-family: var(--font-ui); }
+.rate-nums .new { font-size: 40px; font-weight: 900; color: var(--gold-light); min-width: 2.6em; }
+.rate-nums .delta { font-size: 18px; font-weight: 700; }
+.rate-note { font-size: 12px; color: var(--ivory-dim); margin-top: 2px; }
+.score-details { margin-top: 12px; }
+.score-details summary { cursor: pointer; color: var(--gold); font-weight: 700; font-size: 13px; text-align: center; padding: 4px; }
+.score-wrap { overflow-x: auto; margin-top: 6px; }
+.score-table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.score-table th, .score-table td { padding: 5px 3px; text-align: center; border-bottom: 1px solid rgba(217, 178, 90, 0.12); white-space: nowrap; }
+.score-table thead th { color: var(--muted); font-weight: 700; }
+.score-table tbody th { text-align: left; font-family: var(--font-ui); font-weight: 700; max-width: 5.5em; overflow: hidden; text-overflow: ellipsis; padding-right: 6px; }
+.score-table .tot { font-weight: 900; font-size: 14px; padding-left: 8px; }
+.score-table tr.mine { background: rgba(217, 178, 90, 0.1); }
+.rate-now { text-align: center; font-size: 13px; color: var(--ivory-dim); margin: -2px 0 12px; }
+.rate-now b { font-family: var(--font-num); font-size: 24px; color: var(--gold-light); margin-left: 6px; }
+.rate-now small { display: block; font-size: 11px; color: var(--muted); }
+.opt.lvl { justify-content: space-between; color: var(--ivory); }
+.opt.lvl .lvl-name b { font-size: 16px; }
+.lvl-exp { text-align: right; flex: none; }
+.lvl-exp b { font-family: var(--font-num); font-size: 21px; color: var(--gold-light); }
+.opt .lvl-exp small { font-size: 10.5px; margin: 0; }
+.menu-note { font-size: 12px !important; margin: 12px 0 0 !important; }
+.title-rating { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 10px; margin: 0; font-size: 12px; color: var(--ivory-dim); letter-spacing: 0.06em; }
+.title-rating .lbl { font-weight: 700; color: var(--gold); letter-spacing: 0.14em; }
+.title-rating b { font-family: var(--font-num); font-size: 24px; font-weight: 900; color: var(--gold-light); line-height: 1; }
+.title-rating .sub { font-size: 11px; color: var(--muted); }
+.title-minor { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ───────── ルールブック ───────── */
+.book {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(560px, 100vw);
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #231c16, #100c09);
+  border-left: 1px solid rgba(217, 178, 90, 0.5);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.6);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: bookIn 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.book-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 6px 18px; }
+.book-head h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: 0.14em; color: var(--gold-light); }
+.book-tabs { display: flex; padding: 0 10px; border-bottom: 1px solid var(--lacquer-line); overflow-x: auto; scrollbar-width: none; }
+.book-tabs::-webkit-scrollbar { display: none; }
+.book-tabs button {
+  flex: 1 0 auto;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 10px 9px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--ivory-dim);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.book-tabs button[aria-selected='true'] { color: var(--gold-light); border-bottom-color: var(--gold); }
+.book-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px 32px;
+  -webkit-overflow-scrolling: touch;
+  font-size: 14.5px;
+  line-height: 1.75;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.book-body b { color: var(--gold-light); }
+.book-src { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12px; color: var(--muted); }
+.bk-sect { margin: 0 0 24px; }
+.bk-sect h4 { margin: 0 0 8px; display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 800; font-size: 17px; letter-spacing: 0.08em; color: var(--gold-light); }
+.bk-sect h4::before { content: ''; width: 4px; height: 1.05em; border-radius: 2px; background: linear-gradient(180deg, var(--gold-light), var(--gold-deep)); }
+.bk-sect p { margin: 0 0 8px; }
+.bk-tip { background: rgba(217, 178, 90, 0.1); border: 1px solid rgba(217, 178, 90, 0.3); border-radius: 10px; padding: 8px 12px; font-size: 13.5px; }
+.bk-cards { display: inline-flex; flex: none; }
+.bk-card { width: 30px; aspect-ratio: 5 / 7; border-radius: 3.5px; overflow: hidden; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); flex: none; }
+.bk-card svg { width: 100%; height: 100%; display: block; }
+.bk-cards .bk-card + .bk-card { margin-left: -10px; }
+.bk-strength .bk-cards.row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; width: 100%; }
+.bk-strength .bk-cards.row .bk-card { width: auto; margin: 0; }
+.bk-axis { position: relative; display: flex; justify-content: space-between; margin: 6px 0 10px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.bk-axis::before { content: ''; position: absolute; left: 3.5em; right: 3.5em; top: 50%; height: 2px; background: linear-gradient(90deg, rgba(217, 178, 90, 0.15), var(--gold)); }
+.bk-ways { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; margin: 0 0 12px; }
+.bk-way { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(217, 178, 90, 0.2); text-align: center; font-size: 13px; line-height: 1.4; }
+.bk-way b { color: var(--ivory); }
+.bk-way small { color: var(--ivory-dim); font-size: 11.5px; }
+.bk-way .bk-card { width: 38px; }
+.bk-way .bk-card + .bk-card { margin-left: -12px; }
+.bk-example { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; }
+.bk-arrow { color: var(--gold); font-weight: 700; }
+.bk-ok { color: var(--ok); font-weight: 700; }
+.bk-ng { color: #f3a6a6; font-weight: 700; }
+.bk-steps, .bk-list { margin: 0; padding-left: 1.3em; }
+.bk-steps li, .bk-list li { margin: 5px 0; }
+.bk-list .ic { vertical-align: -2px; color: var(--gold-light); }
+.bk-cardrules { display: flex; flex-direction: column; gap: 10px; }
+.bk-cr { display: grid; grid-template-columns: 78px 1fr; gap: 12px; align-items: start; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(217, 178, 90, 0.18); }
+.bk-cr .bk-cards { justify-content: center; padding-top: 3px; }
+.bk-cr .bk-card { width: 36px; }
+.bk-cr .bk-card + .bk-card { margin-left: -22px; }
+.bk-rule-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk-rule-head b { font-size: 15.5px; }
+.bk-opt { font-size: 11.5px; line-height: 1.5; color: var(--ivory-dim); border: 1px solid rgba(217, 178, 90, 0.35); border-radius: 999px; padding: 0 8px; }
+.bk-cr p, .bk-rule p { margin: 3px 0 0; font-size: 13.5px; color: var(--ivory-dim); line-height: 1.65; }
+.bk-rule { padding: 9px 0; border-bottom: 1px dashed rgba(217, 178, 90, 0.15); }
+.bk-rule.off { opacity: 0.6; }
+.bk-off { margin-top: 4px; }
+.bk-off summary { cursor: pointer; color: var(--gold); font-weight: 700; font-size: 13.5px; padding: 6px 0; }
+.bk-table { border-collapse: collapse; margin: 2px 0 10px; font-size: 14px; }
+.bk-table td { padding: 6px 18px 6px 0; border-bottom: 1px solid rgba(217, 178, 90, 0.12); }
+.bk-table td:last-child { font-family: var(--font-num); font-weight: 700; font-variant-numeric: tabular-nums; }
+.bk-example-box { background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(217, 178, 90, 0.18); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.bk-words { margin: 0; }
+.bk-words dt { font-weight: 700; color: var(--gold-light); margin-top: 12px; }
+.bk-words dd { margin: 2px 0 0; color: var(--ivory-dim); font-size: 14px; }
+@media (max-width: 600px) {
+  .book { width: 100%; border-left: 0; }
+}
+@keyframes bookIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ───────── 履歴 ───────── */
 .log {
@@ -1011,6 +1166,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   .title-fan { height: 124px; }
   .title-fan .card { width: 72px; height: 101px; }
   .res-row { grid-template-columns: 26px 58px 1fr auto; gap: 8px; }
+  .res-row.fin { grid-template-columns: 26px 1fr auto; }
 }
 @media (max-height: 640px) {
   .title-fan { display: none; }
@@ -1047,13 +1203,18 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     <div class="title-inner">
       <div class="title-fan" id="title-fan"></div>
       <h1 class="logo"><span class="logo-kanji">大富豪</span><span class="logo-sub">DAIFUGŌ</span></h1>
-      <p class="title-rule" id="title-rule"></p>
+      <p class="title-rating" id="title-rating"></p>
       <div class="title-actions">
-        <button class="btn btn-gold btn-lg" id="btn-start" type="button">対戦する</button>
+        <button class="btn btn-gold btn-lg" id="btn-rated" type="button">レート戦</button>
+        <button class="btn btn-ghost btn-lg" id="btn-start" type="button">フリー対戦</button>
         <button class="btn btn-ghost btn-lg" id="btn-resume" type="button" hidden>つづきから</button>
         <button class="btn btn-ghost btn-lg" id="btn-online" type="button" hidden>オンライン対戦</button>
-        <button class="btn btn-ghost" id="btn-rules" type="button">ルールと設定</button>
+        <div class="title-minor">
+          <button class="btn btn-ghost" id="btn-rules" type="button">ルールと設定</button>
+          <button class="btn btn-ghost" id="btn-book" type="button">ルールブック</button>
+        </div>
       </div>
+      <p class="title-rule" id="title-rule"></p>
       <p class="title-foot" id="title-foot"></p>
     </div>
   </section>
@@ -1100,6 +1261,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         </div>
         <div class="hud-right">
           <button class="icon-btn chat-btn" id="g-chat" type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" id="g-chat-badge" hidden></span></button>
+          <button class="icon-btn" id="g-book" type="button" aria-label="ルールブック"></button>
           <button class="icon-btn" id="g-log" type="button" aria-label="履歴"></button>
           <button class="icon-btn" id="g-sound" type="button" aria-label="効果音"></button>
         </div>
@@ -1144,6 +1306,15 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       <input id="chat-input" type="text" maxlength="60" placeholder="メッセージ（60文字まで）" enterkeyhint="send" aria-label="メッセージ">
       <button class="btn btn-gold btn-sm" id="chat-send" type="submit">送信</button>
     </form>
+  </aside>
+
+  <aside class="book" id="book" hidden aria-label="ルールブック">
+    <header class="book-head">
+      <h3>ルールブック</h3>
+      <button class="icon-btn" id="book-close" type="button" aria-label="ルールブックを閉じる"></button>
+    </header>
+    <nav class="book-tabs" id="book-tabs" role="tablist" aria-label="ルールブックの章"></nav>
+    <div class="book-body" id="book-body"></div>
   </aside>
 
   <div id="fx" aria-hidden="true"></div>
@@ -1823,7 +1994,11 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     6: ['大富豪', '富豪', '平民', '平民', '貧民', '大貧民'],
   };
   const titleOf = (n, i) => (TITLES[n] || TITLES[4])[i];
+  // 1ゲームの得点（身分ごと。全員の合計は0）
+  const POINTS = { 大富豪: 3, 富豪: 1, 平民: 0, 貧民: -1, 大貧民: -3 };
+  const pointsFor = (n, place) => POINTS[titleOf(n, place)];
 
+  /** opt.games：1試合のゲーム数（0か省略で終わりなし）。opt.rated：レート戦の情報（エンジンは使わず保存するだけ） */
   function createMatch(opt) {
     const rules = D.Rules.normalize(opt.rules);
     const S = {
@@ -1834,6 +2009,10 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         hand: [], out: false, foul: false, score: 0, lastPlace: null,
       })),
       gameNo: 0,
+      maxGames: opt.games > 0 ? Math.floor(opt.games) : 0,
+      matchOver: false,
+      history: [], // ゲームごとの結果 { ranking, pts: 席ごとの得点 }
+      rated: opt.rated || null,
       prevRanking: null,
       phase: 'idle',
       rng: opt.seed != null ? C.mulberry32(opt.seed) : Math.random,
@@ -1842,6 +2021,14 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     };
     resetGame(S);
     return S;
+  }
+
+  /** 試合の順位（総得点の高い順。同点は同じ順位） */
+  function standings(S) {
+    const rows = S.players.map((p) => ({ seat: p.seat, score: p.score, place: 0 }));
+    rows.sort((a, b) => b.score - a.score || a.seat - b.seat);
+    rows.forEach((r, i) => { r.place = i && r.score === rows[i - 1].score ? rows[i - 1].place : i + 1; });
+    return rows;
   }
 
   function resetGame(S) {
@@ -1890,6 +2077,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 
   /** 新しいゲームを配る。presetHands（テスト・オンライン同期用）を渡すとその手札で始める */
   function startGame(S, presetHands) {
+    if (S.matchOver) throw new Error('この試合は終わりました');
     S.gameNo++;
     resetGame(S);
     for (const p of S.players) { p.hand = []; p.out = false; p.foul = false; }
@@ -2298,11 +2486,15 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     S.resolving = null;
     S.queue = [];
     S.prevRanking = ranking.slice();
+    const pts = new Array(S.n).fill(0);
     ranking.forEach((seat, i) => {
-      S.players[seat].score += S.n - 1 - i;
+      pts[seat] = pointsFor(S.n, i);
+      S.players[seat].score += pts[seat];
       S.players[seat].lastPlace = i;
     });
-    emit(S, { t: 'over', ranking: ranking.slice(), titles: ranking.map((_, i) => titleOf(S.n, i)) });
+    S.history.push({ ranking: ranking.slice(), pts });
+    S.matchOver = S.maxGames > 0 && S.gameNo >= S.maxGames;
+    emit(S, { t: 'over', ranking: ranking.slice(), titles: ranking.map((_, i) => titleOf(S.n, i)), pts: pts.slice(), matchOver: S.matchOver });
   }
 
   function subsetOf(hand, cards, max) {
@@ -2446,6 +2638,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     T.resolving = S.resolving && Object.assign({}, S.resolving);
     T.exch = S.exch && { pairs: S.exch.pairs.map((p) => Object.assign({}, p)) };
     T.prevRanking = S.prevRanking && S.prevRanking.slice();
+    T.history = S.history.slice();
     T.events = [];
     T.silent = true;
     return T;
@@ -2463,6 +2656,14 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     S.rules = D.Rules.normalize(o.rules);
     S.rng = Math.random;
     S.events = [];
+    if (!Array.isArray(S.history)) {
+      // 得点表が変わる前に保存された対局：得点は0からやり直す
+      S.history = [];
+      S.players = S.players.map((p) => Object.assign({}, p, { score: 0 }));
+    }
+    if (!(S.maxGames > 0)) S.maxGames = 0;
+    S.matchOver = !!S.matchOver;
+    if (S.rated === undefined) S.rated = null;
     return S;
   }
 
@@ -2492,9 +2693,84 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   D.Engine = {
     enumerate, interpret, playKey, canPlay, legalPlays, playsForCards, explainIllegal, requiredRank,
     effectsOf, isForbiddenFinish, effRev, topPlay, topEntry, nextActive, prevActive, activeCount, stopOptions, skipTargets, bombableRanks,
-    createMatch, startGame, getRequest, apply, clone, serialize, deserialize,
-    titleOf, describePlay, shapeLabel, strongestCards, isSand,
+    createMatch, startGame, getRequest, apply, clone, serialize, deserialize, standings,
+    titleOf, pointsFor, POINTS, describePlay, shapeLabel, strongestCards, isSand,
   };
+})();
+
+</script>
+<script>
+/* 大富豪 — レート戦のレーティング（ブラウザ・サーバー・テストで共通）
+ * 10ゲームの総得点を「相手のレートから予想される総得点」と比べて増減する。 */
+(function () {
+  'use strict';
+  const D = (globalThis.DFG = globalThis.DFG || {});
+  const E = D.Engine;
+
+  const START = 1500; // はじめのレート
+  const GAMES = 10; // レート戦のゲーム数
+  const PLAYERS = 4; // レート戦の人数
+  // AIのレート（強さごとに固定。ふつう=1500 を基準に、tools/calibrate.js でマイルールの対戦を実測して決めた。
+  // 2026-09-26：やさしい vs ふつう×3 を4000ゲーム → −191、つよい（420ms）vs ふつう×3 を400ゲーム → +130）
+  const AI = { easy: 1310, normal: 1500, hard: 1630 };
+  const SCALE = 400; // レート差400で、1対1の勝率が約91%
+  const K = 40; // 1試合で動く大きさ（全ゲーム大富豪なら同じ強さの相手に +40）
+  const K_NEW = 80; // はじめの数試合は大きく動かして、早く実力に近づける
+  const NEW_MATCHES = 5;
+
+  /** レート戦のルール（マイルールで固定） */
+  function rules() { return Object.assign({}, D.Rules.MINE); }
+
+  /** 相手1人より上の順位になる確率 */
+  function winProb(me, opp) { return 1 / (1 + Math.pow(10, (opp - me) / SCALE)); }
+
+  /** 1ゲームで予想される得点。相手それぞれに勝つ確率から、何人に勝つか（＝順位）の分布を出す */
+  function expectedPoints(me, opps) {
+    const n = opps.length + 1;
+    let dist = [1];
+    for (const o of opps) {
+      const p = winProb(me, o);
+      const nd = new Array(dist.length + 1).fill(0);
+      dist.forEach((v, k) => { nd[k] += v * (1 - p); nd[k + 1] += v * p; });
+      dist = nd;
+    }
+    let e = 0;
+    dist.forEach((v, k) => { e += v * E.pointsFor(n, n - 1 - k); });
+    return e;
+  }
+
+  const kFactor = (matches) => ((matches || 0) < NEW_MATCHES ? K_NEW : K);
+
+  /**
+   * 試合のレート変動。
+   * me：自分のレート、opps：相手のレート、total：総得点、games：ゲーム数、matches：これまでのレート戦の数
+   */
+  function change(me, opps, total, games, matches) {
+    const n = opps.length + 1;
+    const g = games || GAMES;
+    const expected = expectedPoints(me, opps) * g;
+    const max = E.pointsFor(n, 0) * g;
+    const delta = Math.round((kFactor(matches) * (total - expected)) / max);
+    return { expected, delta, after: me + delta };
+  }
+
+  /** 途中でやめたとき：残りのゲームは全部 大貧民 として数える */
+  function abandonTotal(scoreSoFar, played, games, n) {
+    return scoreSoFar + Math.max(0, (games || GAMES) - played) * E.pointsFor(n || PLAYERS, (n || PLAYERS) - 1);
+  }
+
+  /** 試合の結果から、席ごとのレート変動を出す（base：試合開始時の各席のレート） */
+  function matchResult(S, base, matchesBySeat) {
+    return S.players.map((p, i) => {
+      const opps = base.filter((_, j) => j !== i);
+      const c = change(base[i], opps, p.score, S.maxGames || GAMES, matchesBySeat ? matchesBySeat[i] : 0);
+      return { seat: i, before: base[i], after: c.after, delta: c.delta, expected: c.expected, total: p.score };
+    });
+  }
+
+  function fmtDelta(d) { return d > 0 ? '+' + d : d < 0 ? '−' + Math.abs(d) : '±0'; }
+
+  D.Rating = { START, GAMES, PLAYERS, AI, SCALE, K, K_NEW, NEW_MATCHES, rules, winProb, expectedPoints, change, abandonTotal, matchResult, fmtDelta, kFactor };
 })();
 
 </script>
@@ -3251,6 +3527,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     home: '<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>',
     check: '<path d="M5 12l5 5 9-10"/>',
     chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>',
+    book: '<path d="M3 5.5c3-1.4 6-1.4 9 .6 3-2 6-2 9-.6V19c-3-1.4-6-1.4-9 .6-3-2-6-2-9-.6z"/><path d="M12 6.1v13.5"/>',
   };
   function icon(name, size) {
     const s = size || 20;
@@ -3607,6 +3884,16 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     return t ? '<span class="title-chip ' + TITLE_CLASS[t] + '">' + t + '</span>' : '';
   }
   const nameOf = (seat) => (seat === UI.human ? 'あなた' : UI.S.players[seat].name);
+  /** 得点の表示（+3・−1・0） */
+  function fmtPts(v) { return v > 0 ? '+' + v : v < 0 ? '−' + Math.abs(v) : '0'; }
+  const ptsClass = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : 'zero');
+  /** 試合の総得点（1ゲーム目が終わるまでは出さない） */
+  function scoreTag(seat) {
+    const S = UI.S;
+    if (!S.history || !S.history.length) return '';
+    const v = S.players[seat].score;
+    return '<span class="sc ' + ptsClass(v) + '" title="総得点">' + fmtPts(v) + '</span>';
+  }
 
   // ─────────────────────────────────────────────
   // 席の配置
@@ -3742,7 +4029,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         el.className = 'seat';
         el.dataset.seat = seat;
         el.innerHTML = '<div class="ava"><span class="face"></span><div class="think"><i></i><i></i><i></i></div></div>' +
-          '<div class="info"><div class="plate"><span class="name"></span><span class="cnt"></span></div><div class="fan"></div></div>';
+          '<div class="info"><div class="plate"><span class="nmrow"><span class="name"></span><span class="scw"></span></span><span class="cnt"></span></div><div class="fan"></div></div>';
         box.appendChild(el);
         UI.seatEls[seat] = el;
       }
@@ -3758,6 +4045,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       const P = S.players[seat];
       const count = vm.hands[seat].length;
       el.querySelector('.name').textContent = P.name;
+      el.querySelector('.scw').innerHTML = scoreTag(seat);
       const cnt = el.querySelector('.cnt');
       const tc = titleChip(seat);
       cnt.innerHTML = (vm.out[seat] ? '' : '<span class="mini" style="background-image:' + UI.backURI + '"></span>' + count) + (tc ? ' ' + tc : '');
@@ -3824,7 +4112,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       ? (vm.foul[UI.human] ? '<span class="yourturn">反則上がり</span>'
         : '<span class="yourturn">' + (vm.places[UI.human] || '') + (vm.places[UI.human] === S.n ? '位' : '位で上がり') + '</span>')
       : '';
-    $('me-id').innerHTML = '<span class="ava">' + A.humanSVG() + '</span><span class="nm">' + esc(S.players[UI.human].name) + '</span>' + tc + status;
+    $('me-id').innerHTML = '<span class="ava">' + A.humanSVG() + '</span><span class="nm">' + esc(S.players[UI.human].name) + '</span>' + scoreTag(UI.human) + tc + status;
   }
 
   function renderHand() {
@@ -3960,7 +4248,12 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   }
 
   function renderHud() {
-    $('g-gameno').innerHTML = '第' + UI.S.gameNo + 'ゲーム' + (UI.roomCode ? '<small>部屋 ' + esc(UI.roomCode) + '</small>' : '');
+    const S = UI.S;
+    const sub = [];
+    if (S.rated) sub.push('<span class="rated-tag">レート戦</span>');
+    if (UI.roomCode) sub.push('部屋 ' + esc(UI.roomCode));
+    $('g-gameno').innerHTML = '第' + S.gameNo + (S.maxGames ? '<span class="of">/' + S.maxGames + '</span>' : '') + 'ゲーム' +
+      (sub.length ? '<small>' + sub.join(' ') + '</small>' : '');
   }
 
   /** 画面の広さに合わせて、手札と場のカードをできるだけ大きくする */
@@ -4563,9 +4856,250 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe, renderLog,
     playEvents, banner, toast, bubble, flash, shake, setThinking, setSelectable, clearSelection, setDim, setHint,
     showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable, logLine,
-    nameOf, titleOfSeat, TITLE_CLASS, esc, sleep,
+    nameOf, titleOfSeat, TITLE_CLASS, esc, sleep, fmtPts, ptsClass,
   });
   D.UI = UI;
+})();
+
+</script>
+<script>
+/* 大富豪 — ルールブック（はじめての人向け。対局中でも開ける） */
+(function () {
+  'use strict';
+  const D = globalThis.DFG;
+  const A = D.Art, RU = D.Rules, E = D.Engine, RT = D.Rating;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const TABS = [
+    { key: 'basics', label: '遊び方' },
+    { key: 'rules', label: 'ルール' },
+    { key: 'score', label: '得点・レート' },
+    { key: 'words', label: '用語' },
+  ];
+
+  function cards(ids, cls) {
+    return '<span class="bk-cards' + (cls ? ' ' + cls : '') + '">' + ids.map((id) => '<span class="bk-card">' + A.faceSVG(id) + '</span>').join('') + '</span>';
+  }
+  const sect = (title, body) => '<section class="bk-sect"><h4>' + esc(title) + '</h4>' + body + '</section>';
+
+  function isOn(R, key) {
+    const d = RU.BY_KEY[key];
+    if (!d) return false;
+    if (d.type === 'bool') return !!R[key];
+    if (key === 'jokers') return R[key] > 0;
+    if (key === 'seqRevolution') return R[key] !== 'off';
+    return true;
+  }
+  function optLabel(R, key) {
+    const d = RU.BY_KEY[key];
+    const op = d.options && d.options.find((o) => o.v === R[key]);
+    return op ? op.label : '';
+  }
+
+  // ─────────────── 遊び方 ───────────────
+  function basics(R) {
+    const order = ['S3', 'H4', 'D5', 'C6', 'S7', 'H8', 'D9', 'C10', 'S11', 'H12', 'D13', 'C14', 'S15'];
+    if (R.jokers > 0) order.push('X1');
+    let h = '';
+    h += sect('ゲームのねらい',
+      '<p>手札を<b>いちばん早くなくした人の勝ち</b>です。上がった順に<b>大富豪・富豪・平民・貧民・大貧民</b>という身分がつきます（4人なら平民はいません）。</p>');
+    h += sect('カードの強さ',
+      '<div class="bk-strength">' + cards(order, 'row') + '<div class="bk-axis"><span>弱い</span><span>強い</span></div></div>' +
+      '<p>3がいちばん弱く、<b>2がいちばん強い</b>数字です。マーク（♠♥♦♣）は強さに関係ありません。' +
+      (R.jokers > 0 ? 'ジョーカーは好きなカードの代わりになり、<b>1枚で出すと2より強い</b>最強のカードです。' : '') + '</p>' +
+      (R.revolution ? '<p class="bk-tip"><b>革命</b>が起きると強さが逆になり、3がいちばん強くなります。</p>' : ''));
+    h += sect('出し方',
+      '<div class="bk-ways">' +
+      '<div class="bk-way">' + cards(['H9']) + '<b>1枚</b></div>' +
+      '<div class="bk-way">' + cards(['S6', 'D6']) + '<b>同じ数字を2〜4枚</b></div>' +
+      (R.sequence ? '<div class="bk-way">' + cards(['H4', 'H5', 'H6']) + '<b>階段</b><small>同じマークの連番を3枚以上</small></div>' : '') +
+      (R.jokers > 0 ? '<div class="bk-way">' + cards(['C7', 'X1']) + '<b>ジョーカー入り</b><small>7のペアとして出せる</small></div>' : '') +
+      '</div>' +
+      '<p>場にカードがあるときは、<b>場と同じ出し方・同じ枚数で、もっと強いカード</b>しか出せません。1枚には1枚、ペアにはペアです。</p>' +
+      '<div class="bk-example">' + cards(['D5', 'C5']) + '<span class="bk-arrow">→</span>' + cards(['S9', 'H9']) + '<span class="bk-ok">出せる</span></div>' +
+      '<div class="bk-example">' + cards(['D5', 'C5']) + '<span class="bk-arrow">→</span>' + cards(['S12']) + '<span class="bk-ng">出せない（枚数が違う）</span></div>');
+    h += sect('順番の進み方',
+      '<ol class="bk-steps">' +
+      '<li><b>親</b>（最初に出す人）は、好きな出し方で出します。' + (R.firstLead === 'D3' ? '1ゲーム目の親は♦3を持っている人です。' : R.firstLead === 'S3' ? '1ゲーム目の親は♠3を持っている人です。' : '') + '</li>' +
+      '<li>次の人からは、場より強いカードを出すか、<b>パス</b>します。出せるカードがあってもパスしてかまいません。</li>' +
+      '<li>自分以外の全員がパスすると<b>場が流れ</b>ます。最後に出した人が次の親になって、また好きな出し方で出せます。</li>' +
+      '<li>手札がなくなったら<b>上がり</b>。最後の1人が決まるまで続けます。</li>' +
+      '</ol>');
+    if (R.exchange) {
+      h += sect('身分とカード交換',
+        '<p>2ゲーム目からは、ゲームの前にカードを交換します。</p>' +
+        '<ul class="bk-list"><li><b>大貧民 → 大富豪</b>：いちばん強いカードを2枚渡し、大富豪は好きなカードを2枚返します。</li>' +
+        '<li><b>貧民 → 富豪</b>：いちばん強いカードを1枚渡し、富豪は好きなカードを1枚返します。</li></ul>' +
+        (R.nextLead === 'poorest' ? '<p>2ゲーム目からの親は、前のゲームの大貧民です。</p>' : ''));
+    }
+    h += sect('画面の使い方',
+      '<ul class="bk-list">' +
+      '<li>カードをタップして選び、<b>「出す」</b>。もう一度タップすると選ぶのをやめます。</li>' +
+      '<li>明るく見えるのが今出せるカードです（「ルールと設定」で切り替え）。</li>' +
+      '<li>迷ったら<b>「ヒント」</b>でおすすめの出し方がわかります。</li>' +
+      '<li>止め札・カードを渡す・捨てるなど、選べる場面では画面がたずねてくれます。</li>' +
+      '<li>上の' + A.icon('log', 14) + 'で今までの流れ、' + A.icon('book', 14) + 'でこのルールブックが見られます。</li>' +
+      '</ul>');
+    return h;
+  }
+
+  // ─────────────── ルール（そのゲームで使うもの） ───────────────
+  // 数字ごとの効果：[ルール, 見本のカード, 出し方]
+  const CARD_RULES = [
+    ['spade3', ['S3'], '♠3を1枚'],
+    ['threeStop', ['H3', 'D3'], '3を2枚'],
+    ['sandstorm', ['S3', 'H3', 'D3'], '3を3枚'],
+    ['fourStop', ['S4', 'H4'], '4を2枚'],
+    ['fiveSkip', ['D5'], '5'],
+    ['sixNine', ['C6'], '6を1枚'],
+    ['rokurokubi', ['S6', 'H6'], '6を2枚'],
+    ['omen', ['S6', 'H6', 'D6'], '6を3枚'],
+    ['sevenPass', ['H7'], '7'],
+    ['luckySeven', ['S7', 'H7', 'D7'], '7を3枚'],
+    ['eightCut', ['S8'], '8'],
+    ['nineSix', ['D9'], '9を1枚'],
+    ['kyukyusha', ['S9', 'H9'], '9を2枚'],
+    ['coup', ['S9', 'H9', 'D9'], '9を3枚'],
+    ['nineReverse', ['C9'], '9'],
+    ['nineBack', ['C9'], '9'],
+    ['tenDiscard', ['C10'], '10'],
+    ['jBack', ['H11'], 'J'],
+    ['queenBomber', ['S12'], 'Q'],
+    ['kingSkip', ['D13'], 'K'],
+    ['aceTake', ['C14'], 'A'],
+    ['twoBack', ['H15'], '2'],
+    ['greatRevolution', ['S15', 'H15', 'D15', 'C15'], '2を4枚'],
+  ];
+  // 例を足すと分かりやすいもの
+  const EXTRA = {
+    suitLock: '例：♥5 → ♥8 と続いたら、場が流れるまで♥しか出せません。',
+    numberLock: '例：5 → 6 と続いたら、次は7しか出せません。',
+    eightCut: '8切りのあとは、出した人がそのまま親になります。',
+    sevenPass: '渡さなくてもかまいません。',
+    tenDiscard: '捨てなくてもかまいません。',
+    fiveSkip: '例：5を2枚出すと、次の2人を飛ばします。',
+  };
+  const FIELD_RULES = ['jokers', 'sequence', 'seqCompare', 'revolution', 'seqRevolution', 'suitLock', 'partialLock', 'numberLock', 'gekiLock',
+    'downNumber', 'passLock', 'stopScope', 'seqEffects'];
+  const FINISH_RULES = ['forbidJoker', 'forbidTwo', 'forbidEight', 'forbidSpade3', 'miyakoOchi', 'gekokujo', 'tenpen', 'exchange', 'firstLead', 'nextLead'];
+
+  function ruleItem(R, key, extraHead) {
+    const d = RU.BY_KEY[key];
+    const choice = d.type === 'choice' ? '<span class="bk-opt">' + esc(optLabel(R, key)) + '</span>' : '';
+    return '<div class="bk-rule"><div class="bk-rule-head"><b>' + esc(d.label) + '</b>' + choice + (extraHead || '') + '</div>' +
+      '<p>' + esc(d.desc) + (EXTRA[key] ? ' ' + esc(EXTRA[key]) : '') + '</p></div>';
+  }
+
+  function relevant(R, key) {
+    // 親のルールがないと意味がない選択肢は出さない
+    if (key === 'seqCompare' || key === 'seqEffects' || key === 'seqRevolution') return R.sequence;
+    if (key === 'stopScope') return R.fourStop || R.threeStop;
+    return true;
+  }
+
+  function rulesTab(R) {
+    let h = '';
+    const cardOn = CARD_RULES.filter(([k]) => isOn(R, k));
+    if (cardOn.length) {
+      h += sect('数字ごとの効果',
+        '<div class="bk-cardrules">' + cardOn.map(([k, ids, how]) => {
+          const d = RU.BY_KEY[k];
+          return '<div class="bk-cr">' + cards(ids, 'fan') + '<div class="bk-cr-text"><div class="bk-rule-head"><b>' + esc(d.label) + '</b><span class="bk-opt">' + esc(how) + '</span></div>' +
+            '<p>' + esc(d.desc) + (EXTRA[k] ? ' ' + esc(EXTRA[k]) : '') + '</p></div></div>';
+        }).join('') + '</div>' +
+        (R.fourStop || R.threeStop || R.sandstorm
+          ? '<p class="bk-tip">止め札（' + [R.threeStop && '3止め', R.fourStop && '4止め', R.sandstorm && '砂嵐'].filter(Boolean).join('・') +
+            '）で止めると、場が流れて<b>止めた人が親</b>になります。止められる場面では画面がたずねます。</p>' : '') +
+        (R.sequence && R.seqEffects === 'eight' ? '<p class="bk-tip">階段の中に8が入っていると8切りになります（ほかの数字の効果は1枚・同じ数字で出したときだけ）。</p>' : ''));
+    }
+    const field = FIELD_RULES.filter((k) => isOn(R, k) && relevant(R, k));
+    if (field.length) {
+      h += sect('場のルール', field.map((k) => ruleItem(R, k)).join('') +
+        (R.jokers > 0 && (R.suitLock || R.numberLock) ? '<p class="bk-tip">ジョーカーを含む出し方では、新しい縛りは起きません。</p>' : ''));
+    }
+    const fin = FINISH_RULES.filter((k) => isOn(R, k));
+    if (fin.length) h += sect('上がり・身分', fin.map((k) => ruleItem(R, k)).join(''));
+    // 使わないルール
+    const off = RU.RULES.filter((d) => d.type === 'bool' && !R[d.key]);
+    if (off.length) {
+      h += '<details class="bk-off"><summary>このルールで使わないローカルルール（' + off.length + '個）</summary>' +
+        off.map((d) => '<div class="bk-rule off"><div class="bk-rule-head"><b>' + esc(d.label) + '</b></div><p>' + esc(d.desc) + '</p></div>').join('') + '</details>';
+    }
+    return h;
+  }
+
+  // ─────────────── 得点・レート ───────────────
+  function score(n) {
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+      const t = E.titleOf(n, i), p = E.pointsFor(n, i);
+      rows.push('<tr><td>' + (i + 1) + '位</td><td><span class="title-chip ' + D.UI.TITLE_CLASS[t] + '">' + t + '</span></td><td class="' + (p > 0 ? 'pos' : p < 0 ? 'neg' : 'zero') + '">' +
+        (p > 0 ? '+' : p < 0 ? '−' : '') + Math.abs(p) + '点</td></tr>');
+    }
+    const ai = RT.AI;
+    let h = '';
+    h += sect('1ゲームの得点（' + n + '人）',
+      '<table class="bk-table">' + rows.join('') + '</table>' +
+      '<p>全員の得点を足すと、いつも0点になります。反則上がりは最下位の得点です。</p>');
+    h += sect('1試合',
+      '<p><b>レート戦は10ゲームで1試合</b>です。10ゲームの総得点がいちばん多い人が優勝です。' +
+      'フリー対戦は「ルールと設定」でゲーム数（5・10・無制限）を選べます。</p>');
+    h += sect('レート戦',
+      '<ul class="bk-list">' +
+      '<li><b>4人・マイルール・10ゲーム</b>で固定です（ルールの中身は「ルール」タブ）。</li>' +
+      '<li>レートは<b>1500</b>から始まります。</li>' +
+      '<li>相手のレートから<b>「予想の総得点」</b>を出します。強い相手ほど予想は低く、弱い相手ほど高くなります。</li>' +
+      '<li>10ゲームの総得点が予想より<b>多ければ上がり、少なければ下がり</b>ます。</li>' +
+      '<li>増減 ＝ ' + RT.K + ' ×（総得点 − 予想）÷ 30。はじめの' + RT.NEW_MATCHES + '試合は ' + RT.K + ' のかわりに ' + RT.K_NEW +
+      ' で計算するので、早く実力に近いレートになります。</li>' +
+      '</ul>' +
+      '<div class="bk-example-box">例：レート1500のあなたが、レート1500の相手3人と対戦（' + (RT.NEW_MATCHES + 1) + '試合目から）。予想は0点。<br>' +
+      '総得点 <b class="pos">+9点</b> なら レート <b class="pos">+12</b>、<b class="neg">−6点</b> なら <b class="neg">−8</b>。</div>');
+    h += sect('AIのレート',
+      '<table class="bk-table"><tr><td>やさしい</td><td>' + ai.easy + '</td></tr><tr><td>ふつう</td><td>' + ai.normal + '</td></tr><tr><td>つよい</td><td>' + ai.hard + '</td></tr></table>' +
+      '<p>マイルールでAIどうしを何百〜何千ゲームも対戦させて測った強さです。</p>');
+    h += sect('棄権',
+      '<p>レート戦を途中でやめる（棄権する）と、<b>残りのゲームは大貧民（−3点）</b>として計算します。' +
+      'タイトルに戻るだけなら棄権にはならず、「つづきから」で再開できます。</p>');
+    h += sect('オンラインのレート',
+      '<ul class="bk-list">' +
+      '<li>AI戦のレートとは別に、サーバーに記録されます（端末ごと。サインインは不要）。</li>' +
+      '<li>部屋のホストが「レート戦」を選ぶと、4人・マイルール・10ゲームになります。空いた席にはAIが入ります。</li>' +
+      '<li>途中で部屋を出ると棄権になります。途中から入った人のレートは変わりません。</li>' +
+      '</ul>');
+    return h;
+  }
+
+  // ─────────────── 用語 ───────────────
+  const WORDS = [
+    ['親', '場にカードがないときに最初に出す人。好きな出し方で出せます。'],
+    ['場', 'テーブルの真ん中。いちばん上のカードより強いカードを出していきます。'],
+    ['パス', '出さずに順番をとばすこと。出せるカードがあってもパスできます。'],
+    ['場が流れる', '場のカードが片づけられること。全員がパスしたときや8切りのときなど。'],
+    ['上がり', '手札が全部なくなること。'],
+    ['反則上がり', '禁止されている出し方（ジョーカー・2など）で上がること。最下位になります。'],
+    ['階段', '同じマークの連番を3枚以上まとめて出す出し方。'],
+    ['革命', '同じ数字を4枚出すと強さが逆になること。3が最強、2が最弱になります。'],
+    ['縛り', '同じマークや連番が続くと、場が流れるまで出せるカードが限られること。'],
+    ['止め札', '8切りやスキップを止められる出し方（3止め・4止め・砂嵐）。'],
+    ['身分', '上がった順番で決まる肩書き。大富豪・富豪・平民・貧民・大貧民。'],
+    ['カード交換', '2ゲーム目から、身分に応じて強いカードと好きなカードを交換すること。'],
+    ['総得点', '1試合（10ゲームなど）の得点の合計。レートはこれで決まります。'],
+    ['レート', '強さの目安の数字。1500から始まり、レート戦の結果で上下します。'],
+  ];
+  function words() {
+    return '<dl class="bk-words">' + WORDS.map(([w, d]) => '<dt>' + esc(w) + '</dt><dd>' + esc(d) + '</dd>').join('') + '</dl>';
+  }
+
+  /** tab：TABS の key、R：説明するルール、n：人数（得点表用） */
+  function render(tab, R, n) {
+    if (tab === 'rules') return rulesTab(R);
+    if (tab === 'score') return score(n || RT.PLAYERS);
+    if (tab === 'words') return words();
+    return basics(R);
+  }
+
+  D.Book = { TABS, render };
 })();
 
 </script>
@@ -4691,7 +5225,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 (function () {
   'use strict';
   const D = globalThis.DFG;
-  const E = D.Engine, C = D.Cards, RU = D.Rules, AI = D.AI, A = D.Art, SND = D.Sound, UI = D.UI;
+  const E = D.Engine, C = D.Cards, RU = D.Rules, AI = D.AI, A = D.Art, SND = D.Sound, UI = D.UI, RT = D.Rating;
   const $ = (id) => document.getElementById(id);
   const esc = UI.esc;
   const sleep = UI.sleep;
@@ -4700,11 +5234,13 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   // 保存（この端末のブラウザだけ）
   // ─────────────────────────────────────────────
   const STORE_KEY = 'daifugo.v1';
-  const DEFAULT_SETTINGS = { players: 4, level: 'normal', speed: 'normal', back: 'red', sound: true, autoPass: true, showPlayable: true, name: 'あなた' };
+  const DEFAULT_SETTINGS = { players: 4, level: 'normal', games: 10, speed: 'normal', back: 'red', sound: true, autoPass: true, showPlayable: true, name: 'あなた' };
   let store = {};
   try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { store = {}; }
   store.settings = Object.assign({}, DEFAULT_SETTINGS, store.settings || {});
   store.rules = store.rules ? RU.migrate(store.rules) : Object.assign({}, RU.MINE);
+  // AI戦のレート（この端末だけ）。hist は最近の試合
+  store.rating = Object.assign({ r: RT.START, matches: 0, best: RT.START, hist: [] }, store.rating || {});
   const settings = store.settings;
 
   function save() {
@@ -4736,6 +5272,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   // ─────────────────────────────────────────────
   function showScreen(name) {
     for (const id of ['scr-title', 'scr-rules', 'scr-online', 'scr-game']) $(id).hidden = id !== 'scr-' + name;
+    if (name !== 'game') closeBook();
     if (name === 'title') renderTitle();
     if (name === 'rules') renderRules();
     if (name === 'online') renderOnline();
@@ -4772,10 +5309,15 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         fan.appendChild(el);
       });
     }
-    $('title-rule').innerHTML = 'ルール：<b>' + esc(presetLabel()) + '</b>（ローカルルール ' + localRuleCount(store.rules) + '個）';
-    $('title-foot').textContent = 'AIロボット' + (settings.players - 1) + '体（' + LEVEL_LABEL[settings.level] + '）と対戦 · ' + settings.players + '人';
-    const canResume = store.match && (store.match.phase === 'play' || store.match.phase === 'exchange' || store.match.phase === 'over');
-    $('btn-resume').hidden = !canResume;
+    const rt = store.rating;
+    $('title-rating').innerHTML = '<span class="lbl">AI戦レート</span><b>' + rt.r + '</b><span class="sub">' +
+      (rt.matches ? rt.matches + '試合 · 最高 ' + rt.best : 'まだレート戦をしていません') + '</span>';
+    $('title-rule').innerHTML = 'フリー対戦のルール：<b>' + esc(presetLabel()) + '</b>（ローカルルール ' + localRuleCount(store.rules) + '個）';
+    $('title-foot').textContent = 'フリー対戦：AIロボット' + (settings.players - 1) + '体（' + LEVEL_LABEL[settings.level] + '）· ' + settings.players + '人 · ' +
+      (settings.games ? settings.games + 'ゲーム' : 'ゲーム数は無制限');
+    const m = savedMatch();
+    $('btn-resume').hidden = !m;
+    if (m) $('btn-resume').textContent = 'つづきから（' + (m.rated ? 'レート戦 ' : '') + '第' + m.gameNo + (m.maxGames ? '/' + m.maxGames : '') + 'ゲーム）';
     // オンライン対戦はアプリ版（GitHub Pages）だけ。Claude のページ内では外と通信できない
     $('btn-online').hidden = !D.Net.available();
     if (!D.Net.available()) $('title-foot').textContent += ' · オンライン対戦はアプリ版で';
@@ -4828,10 +5370,12 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     const set = (k, v) => { settings[k] = v; save(); applySettings(); renderRules(); };
 
     // 対戦設定
-    const m = section('対戦設定');
+    const m = section('対戦設定', 'フリー対戦の設定。レート戦は4人・マイルール・10ゲームで固定');
     m.panel.appendChild(row('人数', 'あなた＋AIロボット', seg([3, 4, 5, 6].map((v) => ({ v, label: v + '人' })), settings.players, (v) => set('players', v))));
     m.panel.appendChild(row('AIの強さ', settings.level === 'hard' ? '手札を読んで先の展開を試算します（考える時間が少し長め）' : '',
       seg([{ v: 'easy', label: 'やさしい' }, { v: 'normal', label: 'ふつう' }, { v: 'hard', label: 'つよい' }], settings.level, (v) => set('level', v))));
+    m.panel.appendChild(row('1試合のゲーム数', settings.games ? settings.games + 'ゲームの総得点で順位を決めます' : '終わりなし。好きなところでやめられます',
+      seg([{ v: 5, label: '5' }, { v: 10, label: '10' }, { v: 0, label: '無制限' }], settings.games, (v) => set('games', v))));
     m.panel.appendChild(row('スピード', '', seg([{ v: 'slow', label: 'ゆっくり' }, { v: 'normal', label: 'ふつう' }, { v: 'fast', label: 'はやい' }], settings.speed, (v) => set('speed', v))));
     const sw = document.createElement('div');
     sw.className = 'swatches';
@@ -4905,12 +5449,27 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   // ─────────────────────────────────────────────
   // 対局の開始・再開
   // ─────────────────────────────────────────────
-  function newMatch() {
+  /** つづきから遊べる対局（終わった試合は含めない） */
+  function savedMatch() {
+    const m = store.match;
+    if (!m || !(m.phase === 'play' || m.phase === 'exchange' || m.phase === 'over') || m.matchOver) return null;
+    return m;
+  }
+
+  /** 新しい試合。opts.rated ならレート戦（4人・マイルール・10ゲーム、AIの強さは opts.level） */
+  function newMatch(opts) {
+    const rated = !!(opts && opts.rated);
+    // 途中のレート戦を捨てて始めるときは、先に棄権の確認
+    const m = savedMatch();
+    if (m && m.rated && !(opts && opts.abandoned)) { askAbandon(() => newMatch(Object.assign({}, opts, { abandoned: true }))); return; }
     cancelLoop();
     leaveRoom(true);
+    const n = rated ? RT.PLAYERS : settings.players;
+    const level = rated ? opts.level : settings.level;
     const players = [{ name: settings.name || 'あなた', human: true }];
-    for (let i = 1; i < settings.players; i++) players.push({ name: A.ROBOTS[i - 1].name, level: settings.level });
-    S = E.createMatch({ rules: store.rules, players });
+    for (let i = 1; i < n; i++) players.push({ name: A.ROBOTS[i - 1].name, level });
+    const info = rated ? { level, base: [store.rating.r].concat(players.slice(1).map(() => RT.AI[level])), matches: store.rating.matches, result: null } : null;
+    S = E.createMatch({ rules: rated ? RT.rules() : store.rules, players, games: rated ? RT.GAMES : settings.games, rated: info });
     UI.S = S;
     UI.human = 0;
     UI.seatInfo = null;
@@ -4922,6 +5481,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   }
 
   async function startNextGame() {
+    if (S.matchOver) return;
     const token = ++loopToken;
     fastForward = false;
     UI.hidePrompt();
@@ -5007,7 +5567,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         if (!fastForward) UI.setThinking(q.seat, true);
         const t0 = performance.now();
         try {
-          action = await AI.decide(S, q, P.level, Math.round(420 * UI.speed));
+          // レート戦はAIのレートを測ったときと同じ考える時間（スピード設定で弱くならないように）
+          action = await AI.decide(S, q, P.level, Math.round(420 * (S.rated ? 1 : UI.speed)));
         } catch (err) {
           console.error(err);
           action = fallbackAction(q);
@@ -5025,6 +5586,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         console.error(err);
         try { evs = E.apply(S, fallbackAction(q)); } catch (e2) { console.error(e2); return; }
       }
+      if (S.matchOver) applyRated(); // 演出の途中で閉じてもレートが反映されるように先に
       if (fastForward) { UI.syncVM(); UI.renderAll(); for (const ev of evs) if (ev.t !== 'deal') logEventQuick(ev); }
       else await UI.playEvents(evs);
       persist();
@@ -5330,70 +5892,233 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   }
 
   // ─────────────────────────────────────────────
+  // レート戦（AI戦のレートはこの端末だけに保存）
+  // ─────────────────────────────────────────────
+  const fmtExp = (v) => (Math.abs(v) < 0.05 ? '±0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1));
+
+  function recordRating(delta, entry) {
+    const rt = store.rating;
+    const before = rt.r;
+    rt.r = before + delta;
+    rt.matches++;
+    rt.best = Math.max(rt.best, rt.r);
+    rt.hist.push(Object.assign({ at: Date.now(), before, after: rt.r, d: delta }, entry));
+    if (rt.hist.length > 50) rt.hist.splice(0, rt.hist.length - 50);
+    return { before, after: rt.r };
+  }
+
+  /** 最後のゲームが終わったらレートを更新する（1試合に1回だけ） */
+  function applyRated() {
+    const info = S && S.rated;
+    if (online || !info || info.result || !S.matchOver) return;
+    const total = S.players[0].score;
+    const c = RT.change(info.base[0], info.base.slice(1), total, S.maxGames, info.matches);
+    const r = recordRating(c.delta, { total, level: info.level });
+    info.result = { before: r.before, after: r.after, delta: c.delta, expected: c.expected, total };
+    persist();
+  }
+
+  /** 途中のレート戦を棄権する（残りのゲームは大貧民として計算） */
+  function abandonRated() {
+    const m = store.match;
+    if (!m || !m.rated || m.matchOver || m.rated.result) return null;
+    const played = (m.history || []).length;
+    const total = RT.abandonTotal(m.players[0].score, played, m.maxGames, m.n);
+    const c = RT.change(m.rated.base[0], m.rated.base.slice(1), total, m.maxGames, m.rated.matches);
+    const r = recordRating(c.delta, { total, level: m.rated.level, abandoned: true });
+    store.match = null;
+    store.log = [];
+    save();
+    return { before: r.before, after: r.after, delta: c.delta };
+  }
+
+  function abandonNote(m) {
+    const left = m.maxGames - (m.history || []).length;
+    return '残りの' + left + 'ゲームは <b>大貧民（−3点）</b> として計算され、レートが下がります。';
+  }
+
+  /** タイトルから新しく始めるとき、途中のレート戦があれば「つづきから／棄権」をたずねる */
+  function askAbandon(onAbandoned) {
+    const m = savedMatch();
+    UI.openDialog('<h3>途中のレート戦があります</h3><p>第' + m.gameNo + '/' + m.maxGames + 'ゲームの途中です。新しく始めると棄権になり、' + abandonNote(m) + '</p>' +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="ab-no">やめる</button>' +
+      '<button class="btn btn-ghost" type="button" id="ab-yes">棄権する</button>' +
+      '<button class="btn btn-gold" type="button" id="ab-resume">つづきから</button></div>', { onBackdrop: UI.closeDialog });
+    $('ab-no').addEventListener('click', UI.closeDialog);
+    $('ab-resume').addEventListener('click', () => { UI.closeDialog(); resumeMatch(); });
+    $('ab-yes').addEventListener('click', () => {
+      const r = abandonRated();
+      UI.closeDialog();
+      if (r) UI.toast('棄権しました。レート ' + r.before + ' → ' + r.after + '（' + RT.fmtDelta(r.delta) + '）', 3500);
+      renderTitle();
+      onAbandoned();
+    });
+  }
+
+  /** レート戦を始める画面（AIの強さを選ぶ） */
+  function openRated() {
+    const m = savedMatch();
+    if (m && m.rated) { askAbandon(openRated); return; }
+    const my = store.rating.r;
+    const opts = ['easy', 'normal', 'hard'].map((lv) => {
+      const ai = RT.AI[lv];
+      const exp = RT.expectedPoints(my, [ai, ai, ai]) * RT.GAMES;
+      return '<button class="opt lvl" type="button" data-lv="' + lv + '"><span class="lvl-name"><b>' + LEVEL_LABEL[lv] + '</b><small>AIのレート ' + ai +
+        (lv === 'hard' ? '・考える時間が長め' : '') + '</small></span><span class="lvl-exp"><small>予想の総得点</small><b>' + fmtExp(exp) + '</b></span></button>';
+    }).join('');
+    const dlg = UI.openDialog('<h3>レート戦</h3><p>4人・<b>マイルール</b>・全10ゲーム。10ゲームの総得点が<br>「予想の総得点」より多ければレートが上がります。</p>' +
+      '<div class="rate-now">あなたのレート <b>' + my + '</b>' + (store.rating.matches < RT.NEW_MATCHES ? '<small>はじめの' + RT.NEW_MATCHES + '試合は大きく動きます</small>' : '') + '</div>' +
+      '<div class="opt-list">' + opts + '</div>' +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="rt-book">ルールを見る</button><button class="btn btn-ghost" type="button" id="rt-cancel">やめる</button></div>',
+    { onBackdrop: UI.closeDialog });
+    dlg.querySelectorAll('.lvl').forEach((b) => b.addEventListener('click', () => { UI.closeDialog(); SND.unlock(); newMatch({ rated: true, level: b.dataset.lv }); }));
+    $('rt-book').addEventListener('click', () => { UI.closeDialog(); openBook('rules', 'rated'); });
+    $('rt-cancel').addEventListener('click', UI.closeDialog);
+  }
+
+  // ─────────────────────────────────────────────
   // 結果・メニュー
   // ─────────────────────────────────────────────
+  const ptsHTML = (v, unit) => '<span class="' + UI.ptsClass(v) + '">' + UI.fmtPts(v) + (unit || '') + '</span>';
+
   function resultsHTML() {
     const ranking = S.prevRanking;
+    const last = S.history[S.history.length - 1];
     const rows = ranking.map((seat, i) => {
       const P = S.players[seat];
       const t = E.titleOf(S.n, i);
       const note = P.foul ? '反則上がり' : '';
+      const pts = last ? last.pts[seat] : E.pointsFor(S.n, i);
       return '<div class="res-row' + (seat === UI.human ? ' me' : '') + '"><span class="pl">' + (i + 1) + '</span>' +
         '<span><span class="title-chip ' + UI.TITLE_CLASS[t] + '">' + t + '</span></span>' +
         '<span class="nm">' + esc(P.name) + (note ? '<small>' + note + '</small>' : '') + '</span>' +
-        '<span class="pt">+' + (S.n - 1 - i) + '<small>計 ' + P.score + '</small></span></div>';
+        '<span class="pt">' + ptsHTML(pts) + '<small>計 ' + UI.fmtPts(P.score) + '</small></span></div>';
     }).join('');
     const myPlace = ranking.indexOf(UI.human);
     const head = myPlace < 0 ? '' : myPlace === 0 ? 'あなたが大富豪！' : 'あなたは ' + E.titleOf(S.n, myPlace);
     if (myPlace === 0) SND.play('fanfare');
-    return '<h3>第' + S.gameNo + 'ゲーム 結果</h3><p>' + esc(head) + (S.rules.exchange ? '　次のゲームは身分に応じてカード交換から。' : '') + '</p>' +
+    const left = S.maxGames ? S.maxGames - S.gameNo : 0;
+    return '<h3>第' + S.gameNo + 'ゲーム 結果</h3><p>' + esc(head) + (S.rules.exchange ? '　次のゲームは身分に応じてカード交換から。' : '') +
+      (S.maxGames ? '<br>' + (S.rated ? 'レート戦 ' : '') + '残り ' + left + 'ゲーム' : '') + '</p>' +
       '<div class="results">' + rows + '</div>';
   }
 
+  function nextLabel() {
+    return '次のゲームへ' + (S.maxGames ? '（' + (S.gameNo + 1) + '/' + S.maxGames + '）' : '');
+  }
+
   function showResults(token) {
+    if (S.matchOver) return showFinal();
     return new Promise((resolve) => {
       UI.hidePrompt();
       UI.openDialog(resultsHTML() +
-        '<div class="btns"><button class="btn btn-ghost" type="button" id="res-title">タイトルへ</button><button class="btn btn-gold" type="button" id="res-next">次のゲームへ</button></div>');
+        '<div class="btns"><button class="btn btn-ghost" type="button" id="res-title">タイトルへ</button><button class="btn btn-gold" type="button" id="res-next">' + nextLabel() + '</button></div>');
       $('res-next').addEventListener('click', () => { UI.closeDialog(); resolve(); if (token === loopToken) startNextGame(); });
       $('res-title').addEventListener('click', () => { UI.closeDialog(); resolve(); cancelLoop(); showScreen('title'); });
     });
   }
 
-  function ruleSummaryHTML() {
-    const R = S ? S.rules : store.rules;
-    const on = [];
-    for (const def of RU.RULES) {
-      if (def.type === 'bool' && R[def.key]) on.push(def.label);
-      else if (def.type === 'choice') {
-        const op = def.options.find((o) => o.v === R[def.key]);
-        if (def.key === 'jokers') on.push('ジョーカー' + op.label);
-        else if (def.key === 'seqRevolution' && R[def.key] !== 'off') on.push('階段革命（' + op.label + '）');
-      }
-    }
-    return '<div class="rule-summary">' + on.map((x) => '<span>' + esc(x) + '</span>').join('') + '</div>';
+  /** 試合の最終結果（順位・ゲームごとの得点表）。rateHTML はレート戦のときのレート欄、deltas は席ごとのレート変動 */
+  function finalHTML(rateHTML, deltas) {
+    const st = E.standings(S);
+    const me = st.find((r) => r.seat === UI.human);
+    const rows = st.map((r) => {
+      const P = S.players[r.seat];
+      const d = deltas && deltas[r.seat];
+      return '<div class="res-row fin' + (r.seat === UI.human ? ' me' : '') + '"><span class="pl">' + r.place + '</span>' +
+        '<span class="nm">' + esc(P.name) + (r.seat === UI.human ? '<em>あなた</em>' : '') +
+        (d ? '<small class="rt">レート ' + d.after + '（' + RT.fmtDelta(d.delta) + '）</small>' : '') + '</span>' +
+        '<span class="pt big">' + ptsHTML(r.score, '<small>点</small>') + '</span></div>';
+    }).join('');
+    const body = st.map((r) => {
+      const P = S.players[r.seat];
+      const cells = S.history.map((h) => '<td class="' + UI.ptsClass(h.pts[r.seat]) + '">' + UI.fmtPts(h.pts[r.seat]) + '</td>').join('');
+      return '<tr' + (r.seat === UI.human ? ' class="mine"' : '') + '><th>' + esc(r.seat === UI.human ? 'あなた' : P.name) + '</th>' + cells +
+        '<td class="tot ' + UI.ptsClass(P.score) + '">' + UI.fmtPts(P.score) + '</td></tr>';
+    }).join('');
+    const cols = S.history.map((_, i) => '<th>' + (i + 1) + '</th>').join('');
+    const msg = !me ? '' : me.place === 1 ? 'あなたが優勝！' : 'あなたは ' + me.place + '位';
+    if (me && me.place === 1) SND.play('fanfare');
+    return '<h3>試合終了</h3><p>' + esc(msg) + '　全' + S.history.length + 'ゲームの総得点で順位を決めました。</p>' +
+      '<div class="results">' + rows + '</div>' + (rateHTML || '') +
+      '<details class="score-details"><summary>ゲームごとの得点</summary><div class="score-wrap"><table class="score-table"><thead><tr><th></th>' + cols +
+      '<th>計</th></tr></thead><tbody>' + body + '</tbody></table></div></details>';
+  }
+
+  function rateBoxHTML(label, r, note) {
+    return '<div class="rate-box"><div class="rate-lbl">' + esc(label) + '</div><div class="rate-nums"><span class="old">' + r.before + '</span><span class="arrow">→</span>' +
+      '<b class="new" data-from="' + r.before + '" data-to="' + r.after + '">' + r.before + '</b><span class="delta ' + UI.ptsClass(r.delta) + '">' + RT.fmtDelta(r.delta) + '</span></div>' +
+      (note ? '<div class="rate-note">' + note + '</div>' : '') + '</div>';
+  }
+
+  /** レートの数字を数え上げる */
+  function animateRate(root) {
+    const el = root && root.querySelector('.rate-box .new');
+    if (!el) return;
+    const from = +el.dataset.from, to = +el.dataset.to;
+    const dur = 900 * UI.speed;
+    setTimeout(() => {
+      if (to > from) SND.play('special');
+      const t0 = performance.now();
+      const step = (t) => {
+        const k = Math.min(1, (t - t0) / dur);
+        el.textContent = String(Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))));
+        if (k < 1 && el.isConnected) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }, 450);
+  }
+
+  function showFinal() {
+    return new Promise((resolve) => {
+      applyRated();
+      UI.hidePrompt();
+      const res = S.rated && S.rated.result;
+      const box = res ? rateBoxHTML('AI戦レート', res, '予想の総得点 ' + fmtExp(res.expected) + ' に対して、あなたは ' + UI.fmtPts(res.total) + '点') : '';
+      const dlg = UI.openDialog(finalHTML(box) +
+        '<div class="btns"><button class="btn btn-ghost" type="button" id="fin-title">タイトルへ</button><button class="btn btn-gold" type="button" id="fin-again">' +
+        (S.rated ? 'もう一度レート戦' : 'もう一度') + '</button></div>');
+      animateRate(dlg);
+      $('fin-again').addEventListener('click', () => { UI.closeDialog(); resolve(); newMatch(S.rated ? { rated: true, level: S.rated.level } : undefined); });
+      $('fin-title').addEventListener('click', () => { UI.closeDialog(); resolve(); cancelLoop(); showScreen('title'); });
+    });
   }
 
   function openMenu() {
     if (online) { openOnlineMenu(); return; }
-    const dlg = UI.openDialog('<h3>メニュー</h3><div class="menu-list">' +
+    const ratedLive = S && S.rated && !S.matchOver;
+    UI.openDialog('<h3>メニュー</h3><div class="menu-list">' +
       '<button class="btn btn-gold" type="button" id="m-close">対局に戻る</button>' +
-      '<button class="btn btn-ghost" type="button" id="m-rules">このゲームのルール</button>' +
-      '<button class="btn btn-ghost" type="button" id="m-restart">最初からやり直す</button>' +
-      '<button class="btn btn-ghost" type="button" id="m-title">タイトルに戻る</button></div>', { onBackdrop: closeMenu });
-    void dlg;
+      '<button class="btn btn-ghost" type="button" id="m-book">ルールブック</button>' +
+      (ratedLive ? '<button class="btn btn-ghost" type="button" id="m-abandon">棄権する</button>'
+        : '<button class="btn btn-ghost" type="button" id="m-restart">最初からやり直す</button>') +
+      '<button class="btn btn-ghost" type="button" id="m-title">タイトルに戻る</button></div>' +
+      (ratedLive ? '<p class="menu-note">タイトルに戻っても、レート戦は「つづきから」で再開できます。</p>' : ''), { onBackdrop: closeMenu });
     $('m-close').addEventListener('click', closeMenu);
-    $('m-rules').addEventListener('click', () => {
-      UI.openDialog('<h3>このゲームのルール</h3><p>オンになっているルールです。変えるときはタイトルの「ルールと設定」から。</p>' + ruleSummaryHTML() +
-        '<div class="btns"><button class="btn btn-gold" type="button" id="m-back">閉じる</button></div>', { onBackdrop: closeMenu });
-      $('m-back').addEventListener('click', closeMenu);
-    });
-    $('m-restart').addEventListener('click', () => {
-      UI.openDialog('<h3>最初からやり直しますか？</h3><p>いまの対局と得点は消えます。</p><div class="btns">' +
-        '<button class="btn btn-ghost" type="button" id="m-no">やめる</button><button class="btn btn-gold" type="button" id="m-yes">やり直す</button></div>', { onBackdrop: closeMenu });
-      $('m-no').addEventListener('click', closeMenu);
-      $('m-yes').addEventListener('click', () => { UI.closeDialog(); newMatch(); });
-    });
+    $('m-book').addEventListener('click', () => { closeMenu(); openBook('rules'); });
+    if (ratedLive) {
+      $('m-abandon').addEventListener('click', () => {
+        persist();
+        UI.openDialog('<h3>棄権しますか？</h3><p>' + abandonNote(store.match) + '</p><div class="btns">' +
+          '<button class="btn btn-ghost" type="button" id="m-no">やめる</button><button class="btn btn-gold" type="button" id="m-yes">棄権する</button></div>', { onBackdrop: closeMenu });
+        $('m-no').addEventListener('click', closeMenu);
+        $('m-yes').addEventListener('click', () => {
+          cancelLoop();
+          const r = abandonRated();
+          const dlg = UI.openDialog('<h3>棄権しました</h3>' + (r ? rateBoxHTML('AI戦レート', r) : '') +
+            '<div class="btns"><button class="btn btn-gold" type="button" id="m-done">タイトルへ</button></div>');
+          animateRate(dlg);
+          $('m-done').addEventListener('click', () => { UI.closeDialog(); showScreen('title'); });
+        });
+      });
+    } else {
+      $('m-restart').addEventListener('click', () => {
+        UI.openDialog('<h3>最初からやり直しますか？</h3><p>いまの対局と得点は消えます。</p><div class="btns">' +
+          '<button class="btn btn-ghost" type="button" id="m-no">やめる</button><button class="btn btn-gold" type="button" id="m-yes">やり直す</button></div>', { onBackdrop: closeMenu });
+        $('m-no').addEventListener('click', closeMenu);
+        $('m-yes').addEventListener('click', () => { UI.closeDialog(); newMatch(); });
+      });
+    }
     $('m-title').addEventListener('click', () => { UI.closeDialog(); cancelLoop(); persist(); showScreen('title'); });
   }
   // メニューを閉じたら、開く前の問い合わせ（止め札など）をやり直す
@@ -5520,8 +6245,18 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     o.busy = false;
   }
 
+  function rememberOnlineRating(v) {
+    const me = v.members && v.members.find((m) => m.you);
+    if (!me || me.rating == null) return;
+    const cur = store.onlineRating || {};
+    if (cur.r === me.rating && cur.matches === me.matches) return;
+    store.onlineRating = { r: me.rating, matches: me.matches || 0 };
+    save();
+  }
+
   async function handleView(o, v) {
     o.view = v;
+    rememberOnlineRating(v);
     if (v.phase === 'lobby') {
       if (o.gameShown) { o.gameShown = false; o.resultsOpen = false; UI.closeDialog(); UI.hidePrompt(); }
       if ($('scr-online').hidden) showScreen('online'); else renderOnline();
@@ -5595,20 +6330,46 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   function showOnlineResults(o) {
     o.resultsOpen = true;
     UI.hidePrompt();
+    if (S.matchOver) { showOnlineFinal(o); return; }
     UI.openDialog(resultsHTML() + '<p>だれかが「次のゲームへ」を押すと、全員の次のゲームが始まります。</p>' +
-      '<div class="btns"><button class="btn btn-ghost" type="button" id="res-leave">部屋を出る</button><button class="btn btn-gold" type="button" id="res-next">次のゲームへ</button></div>');
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="res-leave">部屋を出る</button>' +
+      (S.rated ? '' : '<button class="btn btn-ghost" type="button" id="res-lobby">ここで終わる</button>') +
+      '<button class="btn btn-gold" type="button" id="res-next">' + nextLabel() + '</button></div>');
     $('res-next').addEventListener('click', () => {
       if (!online) return;
       online.conn.send({ t: 'next' });
       $('res-next').disabled = true;
       $('res-next').textContent = '始めています…';
     });
+    if ($('res-lobby')) $('res-lobby').addEventListener('click', () => { if (online) online.conn.send({ t: 'lobby' }); });
+    $('res-leave').addEventListener('click', () => confirmLeave(true));
+  }
+
+  /** オンラインの試合終了（レート戦なら各自のレートの増減も） */
+  function showOnlineFinal(o) {
+    const info = S.rated;
+    const res = info && info.results ? info.results : [];
+    const mine = res[UI.human];
+    const box = mine ? rateBoxHTML('オンラインレート', mine, '予想の総得点 ' + fmtExp(mine.expected) + ' に対して、あなたは ' + UI.fmtPts(mine.total) + '点') : '';
+    const left = res.filter((r) => r && r.abandoned).map((r) => esc(r.name) + ' さんは途中で抜けたため棄権（' + RT.fmtDelta(r.delta) + '）').join('<br>');
+    const deltas = res.map((r) => (r && !r.abandoned ? r : null));
+    const dlg = UI.openDialog(finalHTML(box, deltas) + (left ? '<p class="menu-note">' + left + '</p>' : '') +
+      (info && !mine ? '<p class="menu-note">途中から参加したので、あなたのレートは変わりません。</p>' : '') +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="res-leave">部屋を出る</button><button class="btn btn-gold" type="button" id="res-lobby">部屋に戻る</button></div>');
+    animateRate(dlg);
+    $('res-lobby').addEventListener('click', () => {
+      if (!online) return;
+      online.conn.send({ t: 'lobby' });
+      $('res-lobby').disabled = true;
+    });
     $('res-leave').addEventListener('click', () => confirmLeave(true));
   }
 
   function confirmLeave(fromResults) {
     const playing = online && online.gameShown;
-    UI.openDialog('<h3>部屋を出ますか？</h3><p>' + (playing ? '対局中のあなたの席は、AIロボットが引き継ぎます。' : 'もう一度入るには、招待リンクか部屋コードが必要です。') + '</p>' +
+    const ratedLive = playing && S && S.rated && !S.matchOver && online.view && online.view.youRated;
+    UI.openDialog('<h3>部屋を出ますか？</h3><p>' + (playing ? '対局中のあなたの席は、AIロボットが引き継ぎます。' : 'もう一度入るには、招待リンクか部屋コードが必要です。') +
+      (ratedLive ? '<br><b>レート戦の途中なので棄権になり、</b>残りのゲームは大貧民（−3点）として計算されます。' : '') + '</p>' +
       '<div class="btns"><button class="btn btn-ghost" type="button" id="lv-no">やめる</button><button class="btn btn-gold" type="button" id="lv-yes">部屋を出る</button></div>',
     { onBackdrop: () => back() });
     function back() {
@@ -5624,15 +6385,11 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     UI.openDialog('<h3>メニュー</h3><div class="menu-list">' +
       '<button class="btn btn-gold" type="button" id="m-close">対局に戻る</button>' +
       '<button class="btn btn-ghost" type="button" id="m-invite">友だちを招待</button>' +
-      '<button class="btn btn-ghost" type="button" id="m-rules">このゲームのルール</button>' +
+      '<button class="btn btn-ghost" type="button" id="m-book">ルールブック</button>' +
       '<button class="btn btn-ghost" type="button" id="m-leave">部屋を出る</button></div>', { onBackdrop: closeMenu });
     $('m-close').addEventListener('click', closeMenu);
     $('m-invite').addEventListener('click', () => { if (online) invite(online.code); });
-    $('m-rules').addEventListener('click', () => {
-      UI.openDialog('<h3>このゲームのルール</h3><p>ホストが選んだルールです。</p>' + ruleSummaryHTML() +
-        '<div class="btns"><button class="btn btn-gold" type="button" id="m-back">閉じる</button></div>', { onBackdrop: closeMenu });
-      $('m-back').addEventListener('click', closeMenu);
-    });
+    $('m-book').addEventListener('click', () => { closeMenu(); openBook('rules'); });
     $('m-leave').addEventListener('click', () => confirmLeave(false));
   }
 
@@ -5775,7 +6532,10 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   }
 
   function renderOnlineEntry(wrap) {
+    const orr = store.onlineRating;
     wrap.innerHTML =
+      '<section class="online-rate"><span class="lbl">オンラインレート</span><b>' + (orr ? orr.r : RT.START) + '</b><span class="sub">' +
+      (orr && orr.matches ? orr.matches + '試合' : 'レート戦の部屋で遊ぶと変わります') + '</span></section>' +
       '<section><h3 class="sect-title">あなたの名前<small>ほかの人に表示されます</small></h3><div class="card-panel"><div class="row">' +
       '<input class="name-input wide" id="on-name" maxlength="8" placeholder="名前（8文字まで）" autocomplete="nickname" value="' + esc(onlineName()) + '"></div></div></section>' +
       '<section><h3 class="sect-title">部屋を作る</h3><div class="card-panel"><div class="row col"><div class="row-desc">部屋を作ると招待リンクができます。LINEなどで友だちに送ってください。人数が足りない席にはAIロボットが入ります。</div>' +
@@ -5802,10 +6562,15 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 
   function renderLobby(wrap, o, v) {
     const n = v.settings.players;
+    const rated = v.settings.mode === 'rated';
     const rows = v.members.map((m) => '<div class="member"><span class="dot ' + (m.connected ? 'on' : 'off') + '"></span>' +
-      '<span class="mname">' + esc(m.name) + (m.you ? '<small>（あなた）</small>' : '') + '</span>' + (m.host ? '<span class="host-chip">ホスト</span>' : '') + '</div>').join('');
+      '<span class="mname">' + esc(m.name) + (m.you ? '<small>（あなた）</small>' : '') + '</span>' + (m.host ? '<span class="host-chip">ホスト</span>' : '') +
+      '<span class="rt-chip" title="オンラインレート">' + (m.rating == null ? RT.START : m.rating) + '</span></div>').join('');
     let ai = '';
-    for (let i = v.members.length; i < n; i++) ai += '<div class="member ai"><span class="dot ai"></span><span class="mname">AIロボット</span></div>';
+    for (let i = v.members.length; i < n; i++) {
+      ai += '<div class="member ai"><span class="dot ai"></span><span class="mname">AIロボット</span>' +
+        (rated ? '<span class="rt-chip">' + (RT.AI[v.settings.aiLevel] || RT.AI.normal) + '</span>' : '') + '</div>';
+    }
     wrap.innerHTML =
       '<section class="room-head"><div class="room-label">部屋コード</div><div class="room-code">' + esc(v.code) + '</div>' +
       '<button class="btn btn-gold" type="button" id="on-invite">友だちを招待</button>' +
@@ -5821,11 +6586,22 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
       const panel = document.createElement('div');
       panel.className = 'card-panel';
       const min = Math.max(3, v.members.length);
-      panel.appendChild(row('人数', '足りない席はAIロボット', seg([3, 4, 5, 6].map((x) => ({ v: x, label: x + '人' })), n,
-        (x) => { if (x >= min) o.conn.send({ t: 'config', players: x }); else UI.toast('部屋にいる人数より少なくはできません'); })));
-      panel.appendChild(row('AIの強さ', '', seg([{ v: 'easy', label: 'やさしい' }, { v: 'normal', label: 'ふつう' }], v.settings.aiLevel,
-        (x) => o.conn.send({ t: 'config', aiLevel: x }))));
-      const rr = row('ルール', presetLabel() + '（ローカルルール ' + localRuleCount(store.rules) + '個）。あなたの「ルールと設定」のルールで遊びます。', null);
+      panel.appendChild(row('遊び方', rated ? '4人・マイルール・10ゲームで固定。総得点でオンラインレートが上下します' : 'レートは変わりません',
+        seg([{ v: 'free', label: 'フリー対戦' }, { v: 'rated', label: 'レート戦' }], v.settings.mode, (x) => {
+          if (x === 'rated' && v.members.length > RT.PLAYERS) { UI.toast('レート戦は' + RT.PLAYERS + '人までです'); return; }
+          o.conn.send({ t: 'config', mode: x });
+        })));
+      if (rated) {
+        panel.appendChild(row('人数・ゲーム数', RT.PLAYERS + '人・' + RT.GAMES + 'ゲーム（固定）。足りない席はAIロボット', null));
+      } else {
+        panel.appendChild(row('人数', '足りない席はAIロボット', seg([3, 4, 5, 6].map((x) => ({ v: x, label: x + '人' })), n,
+          (x) => { if (x >= min) o.conn.send({ t: 'config', players: x }); else UI.toast('部屋にいる人数より少なくはできません'); })));
+        panel.appendChild(row('1試合のゲーム数', '', seg([{ v: 5, label: '5' }, { v: 10, label: '10' }, { v: 0, label: '無制限' }], v.settings.games,
+          (x) => o.conn.send({ t: 'config', games: x }))));
+      }
+      panel.appendChild(row('AIの強さ', rated ? 'AIのレート：やさしい ' + RT.AI.easy + '・ふつう ' + RT.AI.normal : '',
+        seg([{ v: 'easy', label: 'やさしい' }, { v: 'normal', label: 'ふつう' }], v.settings.aiLevel, (x) => o.conn.send({ t: 'config', aiLevel: x }))));
+      const rr = row('ルール', rated ? 'マイルール（固定）' : presetLabel() + '（ローカルルール ' + localRuleCount(store.rules) + '個）。あなたの「ルールと設定」のルールで遊びます。', null);
       panel.appendChild(rr);
       box.appendChild(panel);
       $('on-actions').innerHTML = '<button class="btn btn-gold btn-lg" type="button" id="on-start">この部屋で始める</button>' +
@@ -5833,8 +6609,9 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
         '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
       $('on-start').addEventListener('click', () => { SND.unlock(); o.conn.send({ t: 'start', rules: store.rules }); $('on-start').disabled = true; });
     } else {
-      box.innerHTML = '<h3 class="sect-title">設定</h3><div class="card-panel"><div class="row"><div class="row-text"><div class="row-name">' + n + '人で対戦</div>' +
-        '<div class="row-desc">ルールと人数はホストが決めます。AIの強さ：' + (v.settings.aiLevel === 'easy' ? 'やさしい' : 'ふつう') + '</div></div></div></div>';
+      box.innerHTML = '<h3 class="sect-title">設定</h3><div class="card-panel"><div class="row"><div class="row-text"><div class="row-name">' +
+        (rated ? 'レート戦（' + RT.PLAYERS + '人・マイルール・' + RT.GAMES + 'ゲーム）' : 'フリー対戦・' + n + '人・' + (v.settings.games ? v.settings.games + 'ゲーム' : 'ゲーム数は無制限')) + '</div>' +
+        '<div class="row-desc">' + (rated ? '総得点でオンラインレートが上下します。' : '') + 'ルールと人数はホストが決めます。AIの強さ：' + (v.settings.aiLevel === 'easy' ? 'やさしい' : 'ふつう') + '</div></div></div></div>';
       $('on-actions').innerHTML = '<p class="wait-big">ホストが始めるのを待っています…</p>' +
         '<button class="btn btn-ghost" type="button" id="on-chat">チャット</button>' +
         '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
@@ -5842,6 +6619,51 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     $('on-chat').addEventListener('click', openChat);
     updateChatButtons();
     $('on-leave').addEventListener('click', () => confirmLeave(false));
+  }
+
+  // ─────────────────────────────────────────────
+  // ルールブック（対局中でも開ける。開いている間も対局はそのまま進む）
+  // ─────────────────────────────────────────────
+  const book = { tab: 'basics', src: '' };
+
+  /** どのルールを説明するか：対局中は「このゲーム」とレート戦、タイトルではレート戦とフリー対戦 */
+  function bookSources() {
+    const inGame = S && !$('scr-game').hidden;
+    const list = [];
+    if (inGame) list.push({ key: 'game', label: 'このゲーム', rules: S.rules, n: S.n });
+    if (!(inGame && S.rated && !online)) list.push({ key: 'rated', label: 'レート戦', rules: RT.rules(), n: RT.PLAYERS });
+    if (!inGame) list.push({ key: 'free', label: 'フリー対戦', rules: store.rules, n: settings.players });
+    return list;
+  }
+
+  function renderBook() {
+    const srcs = bookSources();
+    const src = srcs.find((x) => x.key === book.src) || srcs[0];
+    book.src = src.key;
+    $('book-tabs').innerHTML = D.Book.TABS.map((t) => '<button type="button" role="tab" data-tab="' + t.key + '" aria-selected="' + (t.key === book.tab) + '">' + esc(t.label) + '</button>').join('');
+    $('book-tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { book.tab = b.dataset.tab; renderBook(); $('book-body').scrollTop = 0; }));
+    const pick = book.tab === 'basics' || book.tab === 'rules' ? '<div class="book-src"><span>説明するルール</span>' +
+      '<div class="seg">' + srcs.map((x) => '<button type="button" data-src="' + x.key + '" aria-pressed="' + (x.key === src.key) + '">' + esc(x.label) + '</button>').join('') + '</div></div>' : '';
+    $('book-body').innerHTML = pick + D.Book.render(book.tab, src.rules, src.n);
+    $('book-body').querySelectorAll('.book-src button').forEach((b) => b.addEventListener('click', () => { book.src = b.dataset.src; renderBook(); }));
+  }
+
+  function openBook(tab, src) {
+    if (tab) book.tab = tab;
+    book.src = src || '';
+    $('log').hidden = true;
+    closeChat();
+    $('book').hidden = false;
+    renderBook();
+    $('book-body').scrollTop = 0;
+    setTimeout(() => $('book-close').focus({ preventScroll: true }), 30);
+  }
+  function closeBook() { $('book').hidden = true; }
+
+  function bookInit() {
+    $('book-close').innerHTML = A.icon('close');
+    $('book-close').addEventListener('click', closeBook);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('book').hidden && $('overlay').hidden) closeBook(); });
   }
 
   // ─────────────────────────────────────────────
@@ -5863,6 +6685,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     if (D.Textures) D.Textures.apply();
     $('g-menu').innerHTML = A.icon('menu');
     $('g-log').innerHTML = A.icon('log');
+    $('g-book').innerHTML = A.icon('book');
     $('rules-back').innerHTML = A.icon('back');
     $('log-close').innerHTML = A.icon('close');
     applySettings();
@@ -5871,7 +6694,11 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     const unlock = () => SND.unlock();
     document.addEventListener('pointerdown', unlock, { once: true });
 
+    $('btn-rated').addEventListener('click', () => { SND.unlock(); openRated(); });
     $('btn-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
+    $('btn-book').addEventListener('click', () => openBook('basics'));
+    $('g-book').addEventListener('click', () => ($('book').hidden ? openBook('rules') : closeBook()));
+    bookInit();
     $('btn-resume').addEventListener('click', () => { SND.unlock(); resumeMatch(); });
     $('btn-rules').addEventListener('click', () => showScreen('rules'));
     $('btn-online').addEventListener('click', () => { SND.unlock(); openOnline(); });

@@ -680,6 +680,89 @@
     current.msgs.push('イベント: ' + Object.keys(counters).sort().map((k) => k + '=' + counters[k]).join(' '));
   });
 
+  // ───────── 得点・試合の長さ・レート ─────────
+  test('得点表：大富豪+3・富豪+1・平民0・貧民−1・大貧民−3（合計0）', () => {
+    const tbl = (n) => Array.from({ length: n }, (_, i) => E.pointsFor(n, i));
+    eq(tbl(3), [3, 0, -3], '3人');
+    eq(tbl(4), [3, 1, -1, -3], '4人');
+    eq(tbl(5), [3, 1, 0, -1, -3], '5人');
+    eq(tbl(6), [3, 1, 0, 0, -1, -3], '6人');
+  });
+
+  function playOut(S) {
+    let q, guard = 0;
+    while ((q = E.getRequest(S)) && guard++ < 5000) E.apply(S, D.AI.decideSync(S, q, 'normal'));
+    if (S.phase !== 'over') throw new Error('終わらない');
+  }
+
+  test('試合は決めたゲーム数で終わり、得点はゲームごとに記録', () => {
+    const S = E.createMatch({ rules: RU.MINE, players: [0, 1, 2, 3].map((i) => ({ name: 'P' + i })), seed: 11, games: 3 });
+    let lastOver = null;
+    for (let g = 0; g < 3; g++) {
+      S.events = [];
+      E.startGame(S);
+      let q, guard = 0;
+      while ((q = E.getRequest(S)) && guard++ < 5000) {
+        const evs = E.apply(S, D.AI.decideSync(S, q, 'normal'));
+        for (const ev of evs) if (ev.t === 'over') lastOver = ev;
+      }
+      eq(S.phase, 'over', (g + 1) + 'ゲーム目が終わる');
+      eq(S.matchOver, g === 2, '試合が終わるのは3ゲーム目');
+    }
+    eq(S.history.length, 3, '3ゲーム分の記録');
+    ok(lastOver && lastOver.matchOver === true, '最後の over イベントに matchOver');
+    eq(lastOver.pts.slice().sort((a, b) => a - b), [-3, -1, 1, 3], 'over イベントに得点');
+    for (const h of S.history) eq(h.pts.reduce((a, b) => a + b, 0), 0, '1ゲームの合計は0');
+    S.players.forEach((p, i) => eq(p.score, S.history.reduce((a, h) => a + h.pts[i], 0), 'P' + i + ' の総得点'));
+    throws(() => E.startGame(S), '終わった試合は続けられない');
+    const st = E.standings(S);
+    ok(st[0].score >= st[3].score, '順位は総得点の高い順');
+  });
+
+  test('ゲーム数なし（無制限）なら試合は終わらない', () => {
+    const S = E.createMatch({ rules: RU.MINE, players: [0, 1, 2].map((i) => ({ name: 'P' + i })), seed: 3 });
+    for (let g = 0; g < 2; g++) { E.startGame(S); playOut(S); }
+    eq(S.matchOver, false, '終わらない');
+    eq(S.maxGames, 0, 'maxGames=0');
+  });
+
+  test('古い保存データ：得点は0から・ゲーム数は無制限', () => {
+    const S = E.createMatch({ rules: RU.MINE, players: [0, 1, 2, 3].map((i) => ({ name: 'P' + i })), seed: 5 });
+    E.startGame(S);
+    const o = E.serialize(S);
+    delete o.history; delete o.maxGames; delete o.matchOver; delete o.rated;
+    o.players[0].score = 9;
+    const T = E.deserialize(o);
+    eq(T.history, [], '記録は空');
+    eq(T.players[0].score, 0, '得点は0');
+    eq([T.maxGames, T.matchOver, T.rated], [0, false, null], '既定値');
+  });
+
+  test('同点は同じ順位', () => {
+    const S = E.createMatch({ rules: RU.MINE, players: [0, 1, 2, 3].map((i) => ({ name: 'P' + i })) });
+    [4, -2, 4, -6].forEach((v, i) => { S.players[i].score = v; });
+    eq(E.standings(S).map((r) => [r.seat, r.place]), [[0, 1], [2, 1], [1, 3], [3, 4]], '順位');
+  });
+
+  test('レート：予想の総得点と増減', () => {
+    const RT = D.Rating;
+    ok(Math.abs(RT.expectedPoints(1500, [1500, 1500, 1500])) < 1e-9, '同じ強さなら予想0');
+    ok(RT.expectedPoints(1600, [1500, 1500, 1500]) > 0, '強ければ予想はプラス');
+    ok(Math.abs(RT.expectedPoints(1600, [1500, 1500, 1500]) + RT.expectedPoints(1400, [1500, 1500, 1500])) < 1e-9, '上下対称');
+    ok(RT.expectedPoints(3000, [1500, 1500, 1500]) < 3 && RT.expectedPoints(3000, [1500, 1500, 1500]) > 2.99, '最大は+3に近づく');
+    eq(RT.change(1500, [1500, 1500, 1500], 9, 10, 10).delta, 12, '+9点 → +12');
+    eq(RT.change(1500, [1500, 1500, 1500], -6, 10, 10).delta, -8, '−6点 → −8');
+    eq(RT.change(1500, [1500, 1500, 1500], 9, 10, 0).delta, 24, 'はじめの試合は2倍');
+    ok(RT.change(1500, [1700, 1700, 1700], 0, 10, 10).delta > 0, '強い相手に0点なら上がる');
+    ok(RT.change(1500, [1300, 1300, 1300], 0, 10, 10).delta < 0, '弱い相手に0点なら下がる');
+    eq(RT.abandonTotal(4, 6, 10, 4), 4 - 12, '棄権：残り4ゲームは−3点ずつ');
+    const S = E.createMatch({ rules: RU.MINE, players: [0, 1, 2, 3].map((i) => ({ name: 'P' + i })), games: 10 });
+    [8, 3, -2, -9].forEach((v, i) => { S.players[i].score = v; });
+    const res = RT.matchResult(S, [1500, 1500, 1500, 1500], [10, 10, 10, 10]);
+    eq(res.reduce((a, r) => a + r.delta, 0), 0, '同じ強さ・同じKなら増減の合計は0');
+    eq(RT.rules(), RU.MINE, 'レート戦はマイルール');
+  });
+
   // 結果表示
   const out = document.getElementById('out');
   const pass_ = results.filter((r) => r.ok).length;

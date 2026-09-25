@@ -97,6 +97,16 @@
     return t ? '<span class="title-chip ' + TITLE_CLASS[t] + '">' + t + '</span>' : '';
   }
   const nameOf = (seat) => (seat === UI.human ? 'あなた' : UI.S.players[seat].name);
+  /** 得点の表示（+3・−1・0） */
+  function fmtPts(v) { return v > 0 ? '+' + v : v < 0 ? '−' + Math.abs(v) : '0'; }
+  const ptsClass = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : 'zero');
+  /** 試合の総得点（1ゲーム目が終わるまでは出さない） */
+  function scoreTag(seat) {
+    const S = UI.S;
+    if (!S.history || !S.history.length) return '';
+    const v = S.players[seat].score;
+    return '<span class="sc ' + ptsClass(v) + '" title="総得点">' + fmtPts(v) + '</span>';
+  }
 
   // ─────────────────────────────────────────────
   // 席の配置
@@ -232,7 +242,7 @@
         el.className = 'seat';
         el.dataset.seat = seat;
         el.innerHTML = '<div class="ava"><span class="face"></span><div class="think"><i></i><i></i><i></i></div></div>' +
-          '<div class="info"><div class="plate"><span class="name"></span><span class="cnt"></span></div><div class="fan"></div></div>';
+          '<div class="info"><div class="plate"><span class="nmrow"><span class="name"></span><span class="scw"></span></span><span class="cnt"></span></div><div class="fan"></div></div>';
         box.appendChild(el);
         UI.seatEls[seat] = el;
       }
@@ -248,6 +258,7 @@
       const P = S.players[seat];
       const count = vm.hands[seat].length;
       el.querySelector('.name').textContent = P.name;
+      el.querySelector('.scw').innerHTML = scoreTag(seat);
       const cnt = el.querySelector('.cnt');
       const tc = titleChip(seat);
       cnt.innerHTML = (vm.out[seat] ? '' : '<span class="mini" style="background-image:' + UI.backURI + '"></span>' + count) + (tc ? ' ' + tc : '');
@@ -314,7 +325,7 @@
       ? (vm.foul[UI.human] ? '<span class="yourturn">反則上がり</span>'
         : '<span class="yourturn">' + (vm.places[UI.human] || '') + (vm.places[UI.human] === S.n ? '位' : '位で上がり') + '</span>')
       : '';
-    $('me-id').innerHTML = '<span class="ava">' + A.humanSVG() + '</span><span class="nm">' + esc(S.players[UI.human].name) + '</span>' + tc + status;
+    $('me-id').innerHTML = '<span class="ava">' + A.humanSVG() + '</span><span class="nm">' + esc(S.players[UI.human].name) + '</span>' + scoreTag(UI.human) + tc + status;
   }
 
   function renderHand() {
@@ -450,7 +461,12 @@
   }
 
   function renderHud() {
-    $('g-gameno').innerHTML = '第' + UI.S.gameNo + 'ゲーム' + (UI.roomCode ? '<small>部屋 ' + esc(UI.roomCode) + '</small>' : '');
+    const S = UI.S;
+    const sub = [];
+    if (S.rated) sub.push('<span class="rated-tag">レート戦</span>');
+    if (UI.roomCode) sub.push('部屋 ' + esc(UI.roomCode));
+    $('g-gameno').innerHTML = '第' + S.gameNo + (S.maxGames ? '<span class="of">/' + S.maxGames + '</span>' : '') + 'ゲーム' +
+      (sub.length ? '<small>' + sub.join(' ') + '</small>' : '');
   }
 
   /** 画面の広さに合わせて、手札と場のカードをできるだけ大きくする */
@@ -1053,7 +1069,7 @@
     syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe, renderLog,
     playEvents, banner, toast, bubble, flash, shake, setThinking, setSelectable, clearSelection, setDim, setHint,
     showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable, logLine,
-    nameOf, titleOfSeat, TITLE_CLASS, esc, sleep,
+    nameOf, titleOfSeat, TITLE_CLASS, esc, sleep, fmtPts, ptsClass,
   });
   D.UI = UI;
 })();

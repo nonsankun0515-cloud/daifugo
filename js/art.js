@@ -260,6 +260,7 @@
     home: '<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>',
     check: '<path d="M5 12l5 5 9-10"/>',
     chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>',
+    book: '<path d="M3 5.5c3-1.4 6-1.4 9 .6 3-2 6-2 9-.6V19c-3-1.4-6-1.4-9 .6-3-2-6-2-9-.6z"/><path d="M12 6.1v13.5"/>',
   };
   function icon(name, size) {
     const s = size || 20;

@@ -53,7 +53,7 @@
     ok(!r.configure('guest_00000001', { players: 5 }, T0).ok, 'ゲストは設定できない');
     ok(!r.configure('host_00000001', { players: 1 }, T0).ok, '3人未満は不可');
     ok(r.configure('host_00000001', { players: 5, aiLevel: 'easy' }, T0).ok, 'ホストは設定できる');
-    eq(r.settings, { players: 5, aiLevel: 'easy' }, '設定');
+    eq(r.settings, { players: 5, aiLevel: 'easy', mode: 'free', games: 10 }, '設定');
     for (let i = 2; i < 6; i++) r.join('guest_0000000' + i, 'G' + i, T0);
     ok(!r.join('guest_00000009', 'あふれ', T0).ok, '7人目は入れない');
     r.leave('host_00000001', T0);
@@ -186,6 +186,71 @@
       }
     }
     cur.msgs.push(games + 'ゲーム完走');
+  });
+
+  function playMatch(r, t) {
+    for (let g = 0; ; g++) {
+      let steps = 0;
+      while (r.S.phase !== 'over' && steps++ < 5000) if (!stepAll(r, t + steps * 1000)) break;
+      if (r.S.phase !== 'over') throw new Error('終わらない');
+      if (r.S.matchOver) return g + 1;
+      const res = r.next('guest_00000001', t);
+      if (!res.ok) throw new Error(res.error);
+    }
+  }
+
+  test('フリー対戦：ゲーム数を決めると試合が終わり、待合室に戻れる', () => {
+    const r = room(2);
+    ok(r.configure('host_00000001', { games: 5 }, T0).ok, 'ゲーム数5');
+    ok(!r.configure('host_00000001', { games: 7 }, T0).ok, '5・10・無制限以外は不可');
+    r.start('host_00000001', RU.MINE, T0);
+    eq(r.S.maxGames, 5, '5ゲーム');
+    eq(playMatch(r, T0), 5, '5ゲームで終わる');
+    ok(!r.next('host_00000001', T0).ok, '6ゲーム目はない');
+    ok(r.toLobby('guest_00000001', T0).ok, '待合室に戻れる');
+    eq([r.phase, r.S, r.ratingOut.length], ['lobby', null, 0], 'フリー対戦はレートなし');
+  });
+
+  test('レート戦：4人・マイルール・10ゲームで、最初からいた人のレートが動く', () => {
+    const r = new D.RoomCore('RATED');
+    r.join('host_00000001', 'ホスト', T0, { r: 1600, n: 12 });
+    r.join('guest_00000001', 'ゲスト', T0, { r: 1450, n: 3 });
+    ok(r.configure('host_00000001', { mode: 'rated', players: 6 }, T0).ok === false, 'レート戦は人数を変えられない');
+    ok(r.configure('host_00000001', { mode: 'rated' }, T0).ok, 'レート戦にする');
+    eq(r.settings.players, 4, '4人に固定');
+    r.join('guest_00000002', 'G2', T0);
+    r.join('guest_00000003', 'G3', T0);
+    ok(!r.join('guest_00000004', 'G4', T0).ok, '5人目は入れない');
+    r.leave('guest_00000003', T0);
+    ok(r.start('host_00000001', RU.defaults(), T0).ok, '開始');
+    eq(r.S.rules, RU.normalize(RU.MINE), 'ルールはマイルールに固定');
+    eq([r.S.n, r.S.maxGames], [4, 10], '4人・10ゲーム');
+    eq(r.S.rated.base, [1600, 1450, 1500, D.Rating.AI.normal], '開始時のレート');
+    const v = r.viewFor('guest_00000001', false);
+    eq(v.youRated, true, 'レート対象');
+    ok(!JSON.stringify(v).includes('host_00000001'), '他人の再接続IDは送らない');
+    // 1ゲーム目のあとで G2 が抜ける → 棄権
+    let steps = 0;
+    while (r.S.phase !== 'over' && steps++ < 5000) stepAll(r, T0 + steps * 1000);
+    r.leave('guest_00000002', T0);
+    eq(r.ratingOut.length, 1, '棄権した人のレート変動');
+    ok(r.S.rated.results[2].abandoned, '棄権の記録');
+    eq(r.S.rated.results[2].total, r.S.players[2].score - 27, '残り9ゲームは−3点');
+    r.join('late_0000001', '途中', T0);
+    eq(r.viewFor('late_0000001', false).youRated, false, '途中参加はレート対象外');
+    ok(!r.toLobby('host_00000001', T0).ok, 'レート戦の途中では待合室に戻れない');
+    r.next('host_00000001', T0);
+    eq(playMatch(r, T0 + 1e7), 9, '残り9ゲーム');
+    const res = r.S.rated.results;
+    ok(res[0] && res[1] && !res[3], '最後までいた2人だけ（途中参加の席は対象外）');
+    eq(r.ratingOut.map((o) => o.cid), ['guest_00000002', 'host_00000001', 'guest_00000001'], 'サーバーに渡す変動');
+    eq(r.member('host_00000001').rating, 1600 + res[0].delta, 'ホストのレートを更新');
+    eq(r.member('guest_00000001').matches, 4, '試合数も更新');
+    r.finishRated();
+    eq(r.ratingOut.length, 3, '二重に数えない');
+    const copy = D.RoomCore.fromJSON(JSON.parse(JSON.stringify(r.toJSON())));
+    eq(copy.ratingOut.length, 3, '保存しても未送信の変動が残る');
+    ok(r.toLobby('guest_00000001', T0).ok, '終わったら待合室へ');
   });
 
   globalThis.ONLINE_TEST_DONE = { pass: lines.filter((l) => l.ok).length, total: lines.length, failed: lines.filter((l) => !l.ok).map((l) => l.name + ': ' + l.msgs.join(' | ')) };

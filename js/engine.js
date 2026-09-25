@@ -382,7 +382,11 @@
     6: ['大富豪', '富豪', '平民', '平民', '貧民', '大貧民'],
   };
   const titleOf = (n, i) => (TITLES[n] || TITLES[4])[i];
+  // 1ゲームの得点（身分ごと。全員の合計は0）
+  const POINTS = { 大富豪: 3, 富豪: 1, 平民: 0, 貧民: -1, 大貧民: -3 };
+  const pointsFor = (n, place) => POINTS[titleOf(n, place)];
 
+  /** opt.games：1試合のゲーム数（0か省略で終わりなし）。opt.rated：レート戦の情報（エンジンは使わず保存するだけ） */
   function createMatch(opt) {
     const rules = D.Rules.normalize(opt.rules);
     const S = {
@@ -393,6 +397,10 @@
         hand: [], out: false, foul: false, score: 0, lastPlace: null,
       })),
       gameNo: 0,
+      maxGames: opt.games > 0 ? Math.floor(opt.games) : 0,
+      matchOver: false,
+      history: [], // ゲームごとの結果 { ranking, pts: 席ごとの得点 }
+      rated: opt.rated || null,
       prevRanking: null,
       phase: 'idle',
       rng: opt.seed != null ? C.mulberry32(opt.seed) : Math.random,
@@ -401,6 +409,14 @@
     };
     resetGame(S);
     return S;
+  }
+
+  /** 試合の順位（総得点の高い順。同点は同じ順位） */
+  function standings(S) {
+    const rows = S.players.map((p) => ({ seat: p.seat, score: p.score, place: 0 }));
+    rows.sort((a, b) => b.score - a.score || a.seat - b.seat);
+    rows.forEach((r, i) => { r.place = i && r.score === rows[i - 1].score ? rows[i - 1].place : i + 1; });
+    return rows;
   }
 
   function resetGame(S) {
@@ -449,6 +465,7 @@
 
   /** 新しいゲームを配る。presetHands（テスト・オンライン同期用）を渡すとその手札で始める */
   function startGame(S, presetHands) {
+    if (S.matchOver) throw new Error('この試合は終わりました');
     S.gameNo++;
     resetGame(S);
     for (const p of S.players) { p.hand = []; p.out = false; p.foul = false; }
@@ -857,11 +874,15 @@
     S.resolving = null;
     S.queue = [];
     S.prevRanking = ranking.slice();
+    const pts = new Array(S.n).fill(0);
     ranking.forEach((seat, i) => {
-      S.players[seat].score += S.n - 1 - i;
+      pts[seat] = pointsFor(S.n, i);
+      S.players[seat].score += pts[seat];
       S.players[seat].lastPlace = i;
     });
-    emit(S, { t: 'over', ranking: ranking.slice(), titles: ranking.map((_, i) => titleOf(S.n, i)) });
+    S.history.push({ ranking: ranking.slice(), pts });
+    S.matchOver = S.maxGames > 0 && S.gameNo >= S.maxGames;
+    emit(S, { t: 'over', ranking: ranking.slice(), titles: ranking.map((_, i) => titleOf(S.n, i)), pts: pts.slice(), matchOver: S.matchOver });
   }
 
   function subsetOf(hand, cards, max) {
@@ -1005,6 +1026,7 @@
     T.resolving = S.resolving && Object.assign({}, S.resolving);
     T.exch = S.exch && { pairs: S.exch.pairs.map((p) => Object.assign({}, p)) };
     T.prevRanking = S.prevRanking && S.prevRanking.slice();
+    T.history = S.history.slice();
     T.events = [];
     T.silent = true;
     return T;
@@ -1022,6 +1044,14 @@
     S.rules = D.Rules.normalize(o.rules);
     S.rng = Math.random;
     S.events = [];
+    if (!Array.isArray(S.history)) {
+      // 得点表が変わる前に保存された対局：得点は0からやり直す
+      S.history = [];
+      S.players = S.players.map((p) => Object.assign({}, p, { score: 0 }));
+    }
+    if (!(S.maxGames > 0)) S.maxGames = 0;
+    S.matchOver = !!S.matchOver;
+    if (S.rated === undefined) S.rated = null;
     return S;
   }
 
@@ -1051,7 +1081,7 @@
   D.Engine = {
     enumerate, interpret, playKey, canPlay, legalPlays, playsForCards, explainIllegal, requiredRank,
     effectsOf, isForbiddenFinish, effRev, topPlay, topEntry, nextActive, prevActive, activeCount, stopOptions, skipTargets, bombableRanks,
-    createMatch, startGame, getRequest, apply, clone, serialize, deserialize,
-    titleOf, describePlay, shapeLabel, strongestCards, isSand,
+    createMatch, startGame, getRequest, apply, clone, serialize, deserialize, standings,
+    titleOf, pointsFor, POINTS, describePlay, shapeLabel, strongestCards, isSand,
   };
 })();
