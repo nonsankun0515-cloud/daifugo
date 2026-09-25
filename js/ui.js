@@ -12,6 +12,7 @@
   const UI = {
     S: null,
     human: 0,
+    seatInfo: null, // オンライン対戦のときだけ：[{ name, type: 'human'|'ai', robot, connected }]
     vm: null,
     speed: 1,
     backURI: '',
@@ -216,6 +217,7 @@
 
   function renderSeats() {
     const S = UI.S, vm = UI.vm;
+    if (!S || !vm) return;
     const box = $('seats');
     const rect = $('table').getBoundingClientRect();
     const w = rect.width || 1, h = rect.height || 1;
@@ -229,11 +231,19 @@
         el = document.createElement('div');
         el.className = 'seat';
         el.dataset.seat = seat;
-        el.innerHTML = '<div class="ava">' + A.robotSVG(seat - 1) + '<div class="think"><i></i><i></i><i></i></div></div>' +
+        el.innerHTML = '<div class="ava"><span class="face"></span><div class="think"><i></i><i></i><i></i></div></div>' +
           '<div class="info"><div class="plate"><span class="name"></span><span class="cnt"></span></div><div class="fan"></div></div>';
         box.appendChild(el);
         UI.seatEls[seat] = el;
       }
+      // オンライン対戦では人の席は人のアイコン、AIはロボット
+      const info = UI.seatInfo && UI.seatInfo[seat];
+      const kind = info && info.type === 'human' ? 'human' : 'ai:' + (info ? info.robot : seat - 1);
+      if (el.dataset.kind !== kind) {
+        el.dataset.kind = kind;
+        el.querySelector('.face').innerHTML = kind === 'human' ? A.personSVG(seat) : A.robotSVG(info ? info.robot : seat - 1);
+      }
+      el.classList.toggle('away', !!(info && info.type === 'human' && !info.connected));
       order.push(el);
       const P = S.players[seat];
       const count = vm.hands[seat].length;
@@ -308,6 +318,7 @@
   }
 
   function renderHand() {
+    if (!UI.vm) return;
     const box = $('hand');
     const hand = UI.vm.hands[UI.human];
     const sorted = C.sortHand(hand, UI.vm.rev);
@@ -439,7 +450,7 @@
   }
 
   function renderHud() {
-    $('g-gameno').textContent = '第' + UI.S.gameNo + 'ゲーム';
+    $('g-gameno').textContent = '第' + UI.S.gameNo + 'ゲーム' + (UI.roomCode ? '・部屋 ' + UI.roomCode : '');
   }
 
   /** 画面の広さに合わせて、手札と場のカードをできるだけ大きくする */
@@ -471,6 +482,7 @@
   }
 
   function renderAll() {
+    if (!UI.S || !UI.vm) return;
     fitCards();
     renderHud();
     renderSeats();
@@ -586,7 +598,11 @@
   // イベントの再生
   // ─────────────────────────────────────────────
   function removeFrom(arr, cards) {
-    for (const id of cards) { const i = arr.indexOf(id); if (i >= 0) arr.splice(i, 1); }
+    for (const id of cards) {
+      let i = arr.indexOf(id);
+      if (i < 0) i = arr.indexOf('?'); // オンラインで伏せられた他人の手札
+      if (i >= 0) arr.splice(i, 1);
+    }
   }
 
   function handRects(cards) {

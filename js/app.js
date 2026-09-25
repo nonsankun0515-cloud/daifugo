@@ -23,6 +23,7 @@
   }
 
   let S = null;
+  let online = null; // オンライン対戦中の部屋（ローカル対戦中は null）
   let loopToken = 0;
   let humanCancel = null;
   let fastForward = false;
@@ -45,9 +46,10 @@
   // 画面
   // ─────────────────────────────────────────────
   function showScreen(name) {
-    for (const id of ['scr-title', 'scr-rules', 'scr-game']) $(id).hidden = id !== 'scr-' + name;
+    for (const id of ['scr-title', 'scr-rules', 'scr-online', 'scr-game']) $(id).hidden = id !== 'scr-' + name;
     if (name === 'title') renderTitle();
     if (name === 'rules') renderRules();
+    if (name === 'online') renderOnline();
     saveHot();
   }
 
@@ -85,6 +87,9 @@
     $('title-foot').textContent = 'AIロボット' + (settings.players - 1) + '体（' + LEVEL_LABEL[settings.level] + '）と対戦 · ' + settings.players + '人';
     const canResume = store.match && (store.match.phase === 'play' || store.match.phase === 'exchange' || store.match.phase === 'over');
     $('btn-resume').hidden = !canResume;
+    // オンライン対戦はアプリ版（GitHub Pages）だけ。Claude のページ内では外と通信できない
+    $('btn-online').hidden = !D.Net.available();
+    if (!D.Net.available()) $('title-foot').textContent += ' · オンライン対戦はアプリ版で';
   }
 
   // ─────────────────────────────────────────────
@@ -213,11 +218,13 @@
   // ─────────────────────────────────────────────
   function newMatch() {
     cancelLoop();
+    leaveRoom(true);
     const players = [{ name: settings.name || 'あなた', human: true }];
     for (let i = 1; i < settings.players; i++) players.push({ name: A.ROBOTS[i - 1].name, level: settings.level });
     S = E.createMatch({ rules: store.rules, players });
     UI.S = S;
     UI.human = 0;
+    UI.seatInfo = null;
     UI.logLines = [];
     UI.resetTable();
     fastForward = false;
@@ -243,6 +250,8 @@
   function resumeMatch() {
     if (!store.match) return;
     cancelLoop();
+    leaveRoom(true);
+    UI.seatInfo = null;
     try {
       S = E.deserialize(store.match);
       S.rules = RU.migrate(S.rules);
@@ -263,7 +272,7 @@
   }
 
   function persist() {
-    if (!S) return;
+    if (!S || online) return; // オンライン対戦の状態はサーバーが持つ
     try {
       store.match = E.serialize(S);
       store.log = UI.logLines.slice(-120);
@@ -272,9 +281,13 @@
     saveHot();
   }
 
+  function cancelHuman() {
+    if (humanCancel) { const c = humanCancel; humanCancel = null; c(); }
+  }
+
   function cancelLoop() {
     loopToken++;
-    if (humanCancel) { const c = humanCancel; humanCancel = null; c(); }
+    cancelHuman();
     UI.closeDialog();
     UI.hidePrompt();
   }
@@ -630,25 +643,28 @@
   // ─────────────────────────────────────────────
   // 結果・メニュー
   // ─────────────────────────────────────────────
+  function resultsHTML() {
+    const ranking = S.prevRanking;
+    const rows = ranking.map((seat, i) => {
+      const P = S.players[seat];
+      const t = E.titleOf(S.n, i);
+      const note = P.foul ? '反則上がり' : '';
+      return '<div class="res-row' + (seat === UI.human ? ' me' : '') + '"><span class="pl">' + (i + 1) + '</span>' +
+        '<span><span class="title-chip ' + UI.TITLE_CLASS[t] + '">' + t + '</span></span>' +
+        '<span class="nm">' + esc(P.name) + (note ? '<small>' + note + '</small>' : '') + '</span>' +
+        '<span class="pt">+' + (S.n - 1 - i) + '<small>計 ' + P.score + '</small></span></div>';
+    }).join('');
+    const myPlace = ranking.indexOf(UI.human);
+    const head = myPlace < 0 ? '' : myPlace === 0 ? 'あなたが大富豪！' : 'あなたは ' + E.titleOf(S.n, myPlace);
+    if (myPlace === 0) SND.play('fanfare');
+    return '<h3>第' + S.gameNo + 'ゲーム 結果</h3><p>' + esc(head) + (S.rules.exchange ? '　次のゲームは身分に応じてカード交換から。' : '') + '</p>' +
+      '<div class="results">' + rows + '</div>';
+  }
+
   function showResults(token) {
     return new Promise((resolve) => {
       UI.hidePrompt();
-      const ranking = S.prevRanking;
-      const rows = ranking.map((seat, i) => {
-        const P = S.players[seat];
-        const t = E.titleOf(S.n, i);
-        const note = P.foul ? '反則上がり' : '';
-        return '<div class="res-row' + (seat === UI.human ? ' me' : '') + '"><span class="pl">' + (i + 1) + '</span>' +
-          '<span><span class="title-chip ' + UI.TITLE_CLASS[t] + '">' + t + '</span></span>' +
-          '<span class="nm">' + esc(P.name) + (note ? '<small>' + note + '</small>' : '') + '</span>' +
-          '<span class="pt">+' + (S.n - 1 - i) + '<small>計 ' + P.score + '</small></span></div>';
-      }).join('');
-      const myPlace = ranking.indexOf(UI.human);
-      const myTitle = E.titleOf(S.n, myPlace);
-      const head = myPlace === 0 ? 'あなたが大富豪！' : 'あなたは ' + myTitle;
-      if (myPlace === 0) SND.play('fanfare');
-      UI.openDialog('<h3>第' + S.gameNo + 'ゲーム 結果</h3><p>' + esc(head) + (S.rules.exchange ? '　次のゲームは身分に応じてカード交換から。' : '') + '</p>' +
-        '<div class="results">' + rows + '</div>' +
+      UI.openDialog(resultsHTML() +
         '<div class="btns"><button class="btn btn-ghost" type="button" id="res-title">タイトルへ</button><button class="btn btn-gold" type="button" id="res-next">次のゲームへ</button></div>');
       $('res-next').addEventListener('click', () => { UI.closeDialog(); resolve(); if (token === loopToken) startNextGame(); });
       $('res-title').addEventListener('click', () => { UI.closeDialog(); resolve(); cancelLoop(); showScreen('title'); });
@@ -670,6 +686,7 @@
   }
 
   function openMenu() {
+    if (online) { openOnlineMenu(); return; }
     const dlg = UI.openDialog('<h3>メニュー</h3><div class="menu-list">' +
       '<button class="btn btn-gold" type="button" id="m-close">対局に戻る</button>' +
       '<button class="btn btn-ghost" type="button" id="m-rules">このゲームのルール</button>' +
@@ -693,6 +710,7 @@
   // メニューを閉じたら、開く前の問い合わせ（止め札など）をやり直す
   function closeMenu() {
     UI.closeDialog();
+    if (online) { reaskOnline(); return; }
     if (S && $('scr-game').hidden === false) {
       const q = E.getRequest(S);
       if (q && S.players[q.seat].human && q.kind !== 'turn' && q.kind !== 'give' && q.kind !== 'discard' && q.kind !== 'exchange') {
@@ -700,6 +718,321 @@
         runLoop();
       }
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // オンライン対戦（ルール判定とAIはサーバー。ここは表示と自分の操作だけ）
+  // ─────────────────────────────────────────────
+  let onlineDraftCode = '';
+
+  function onlineName() {
+    const n = (settings.name || '').trim();
+    return n && n !== 'あなた' ? n : '';
+  }
+
+  function inviteURL(code) {
+    const h = location.hostname;
+    const here = h === 'localhost' || h === '127.0.0.1' || /github\.io$/.test(h);
+    return (here ? location.origin + location.pathname : D.Net.APP_URL) + '#r-' + code;
+  }
+
+  function openOnline(code) {
+    cancelLoop();
+    if (!D.Net.available()) { UI.toast('オンライン対戦はアプリ版（GitHubのページ）で遊べます', 4000); return; }
+    if (code && !online) {
+      onlineDraftCode = code;
+      if (onlineName()) { joinRoom(code); return; }
+    }
+    showScreen('online');
+  }
+
+  function setConn(s) {
+    if (!online) return;
+    online.status = s;
+    $('online-conn').textContent = { connecting: '接続中…', retry: '再接続中…', closed: '切断' }[s] || '';
+    if (s === 'retry' && online.gameShown) UI.toast('通信が切れました。つなぎ直しています…', 2500);
+    if (!$('scr-online').hidden && !online.view) renderOnline();
+  }
+
+  function joinRoom(code) {
+    const name = onlineName();
+    if (!name) { UI.toast('名前を入れてください'); return; }
+    leaveRoom(true);
+    const o = { code, conn: null, view: null, queue: [], busy: false, waiting: false, sig: '', waitingSig: '', sentSig: '',
+      seat: -1, gameShown: false, resultsOpen: false, status: 'connecting' };
+    online = o;
+    UI.roomCode = code;
+    o.conn = D.Net.connect(code, {
+      onOpen: () => { if (online === o) o.conn.send({ t: 'hello', cid: D.Net.clientId(), name }); },
+      onMessage: (m) => { if (online === o) onlineMessage(o, m); },
+      onStatus: (s) => { if (online === o) setConn(s); },
+      onClosed: (c) => {
+        if (online !== o) return;
+        online = null;
+        UI.roomCode = null;
+        if (c === 4000) UI.toast('ほかの画面でこの部屋に入ったので、こちらは切断しました', 4000);
+        showScreen('online');
+      },
+    });
+    try { history.replaceState(null, '', location.pathname + location.search + '#r-' + code); } catch (e) { /* 無視 */ }
+    showScreen('online');
+  }
+
+  /** 部屋を出る（対局中ならその席はAIが引き継ぐ） */
+  function leaveRoom(silent) {
+    if (!online) return;
+    const o = online;
+    online = null;
+    UI.roomCode = null;
+    UI.seatInfo = null;
+    cancelHuman();
+    o.conn.send({ t: 'leave' });
+    setTimeout(() => o.conn.close(), 200);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* 無視 */ }
+    if (!silent) { UI.closeDialog(); UI.hidePrompt(); showScreen('title'); }
+  }
+
+  function viewSig(v) {
+    if (!v.state) return 'lobby';
+    const s = v.state;
+    return [s.gameNo, s.moves, s.phase, s.turn, s.pile.length, JSON.stringify(s.pending || null), v.seat].join('|');
+  }
+
+  function onlineMessage(o, m) {
+    if (m.t === 'error') { UI.toast(m.error, 3000); SND.play('error'); return; }
+    if (m.t !== 'room') return;
+    // 自分の入力待ちの間に来た「接続状態だけ」の更新は、入力を邪魔せずに反映する
+    if (o.waiting && m.phase === 'playing' && viewSig(m) === o.waitingSig && !(m.events && m.events.length)) {
+      o.view = m;
+      UI.seatInfo = m.seats;
+      UI.renderSeats();
+      return;
+    }
+    if (o.waiting) cancelHuman();
+    o.queue.push(m);
+    pumpOnline(o);
+  }
+
+  async function pumpOnline(o) {
+    if (o.busy) return;
+    o.busy = true;
+    try {
+      while (online === o && o.queue.length) await handleView(o, o.queue.shift());
+    } catch (e) {
+      console.error(e);
+    }
+    o.busy = false;
+  }
+
+  async function handleView(o, v) {
+    o.view = v;
+    if (v.phase === 'lobby') {
+      if (o.gameShown) { o.gameShown = false; o.resultsOpen = false; UI.closeDialog(); UI.hidePrompt(); }
+      if ($('scr-online').hidden) showScreen('online'); else renderOnline();
+      return;
+    }
+    if (!(v.seat >= 0)) return;
+    const st = E.deserialize(v.state);
+    const sig = viewSig(v);
+    const evs = v.events || [];
+    const first = !o.gameShown || o.seat !== v.seat;
+    if (!first && sig === o.sig && !evs.length) {
+      // 参加者の接続状態・名前だけの更新
+      UI.seatInfo = v.seats;
+      st.players.forEach((p, i) => { if (S && S.players[i]) S.players[i].name = p.name; });
+      UI.renderSeats();
+    } else {
+      o.sig = sig;
+      S = st;
+      UI.S = S;
+      UI.human = v.seat;
+      UI.seatInfo = v.seats;
+      o.seat = v.seat;
+      if (o.resultsOpen && S.phase !== 'over') { UI.closeDialog(); o.resultsOpen = false; }
+      if (first) {
+        o.gameShown = true;
+        UI.logLines = [];
+        showScreen('game');
+        UI.resetTable();
+        UI.syncVM();
+        UI.renderAll();
+        if (evs.some((e) => e.t === 'deal')) await UI.playEvents(evs);
+      } else if (evs.length) {
+        const saved = UI.speed;
+        if (o.queue.length > 1) UI.speed = Math.min(saved, 0.35); // 遅れているときは早送り
+        await UI.playEvents(evs);
+        UI.speed = saved;
+      } else {
+        UI.syncVM();
+        UI.renderAll();
+      }
+    }
+    if (online !== o) return;
+    if (S.phase === 'over') { if (!o.resultsOpen) showOnlineResults(o); return; }
+    if (v.request && !o.queue.length && sig !== o.sentSig) await askOnline(o, v);
+  }
+
+  async function askOnline(o, v) {
+    if (o.waiting) return;
+    o.waiting = true;
+    o.waitingSig = viewSig(v);
+    const action = await humanAction(v.request);
+    o.waiting = false;
+    if (!action || online !== o) return;
+    const a = Object.assign({}, action);
+    delete a.seat;
+    if (o.conn.send({ t: 'action', action: a })) o.sentSig = o.waitingSig;
+    else UI.toast('通信が切れています。つながり直したら、もう一度操作してください', 3500);
+  }
+
+  function reaskOnline() {
+    const o = online;
+    if (!o) return;
+    if (o.waiting) cancelHuman();
+    setTimeout(() => {
+      if (online !== o || o.waiting || o.busy || !o.view || !S) return;
+      if (S.phase === 'over') { if (!o.resultsOpen) showOnlineResults(o); return; }
+      if (o.view.request) { o.sentSig = ''; askOnline(o, o.view); }
+    }, 0);
+  }
+
+  function showOnlineResults(o) {
+    o.resultsOpen = true;
+    UI.hidePrompt();
+    UI.openDialog(resultsHTML() + '<p>だれかが「次のゲームへ」を押すと、全員の次のゲームが始まります。</p>' +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="res-leave">部屋を出る</button><button class="btn btn-gold" type="button" id="res-next">次のゲームへ</button></div>');
+    $('res-next').addEventListener('click', () => {
+      if (!online) return;
+      online.conn.send({ t: 'next' });
+      $('res-next').disabled = true;
+      $('res-next').textContent = '始めています…';
+    });
+    $('res-leave').addEventListener('click', () => confirmLeave(true));
+  }
+
+  function confirmLeave(fromResults) {
+    const playing = online && online.gameShown;
+    UI.openDialog('<h3>部屋を出ますか？</h3><p>' + (playing ? '対局中のあなたの席は、AIロボットが引き継ぎます。' : 'もう一度入るには、招待リンクか部屋コードが必要です。') + '</p>' +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="lv-no">やめる</button><button class="btn btn-gold" type="button" id="lv-yes">部屋を出る</button></div>',
+    { onBackdrop: () => back() });
+    function back() {
+      UI.closeDialog();
+      if (fromResults && online) showOnlineResults(online);
+      else reaskOnline();
+    }
+    $('lv-no').addEventListener('click', back);
+    $('lv-yes').addEventListener('click', () => leaveRoom(false));
+  }
+
+  function openOnlineMenu() {
+    UI.openDialog('<h3>メニュー</h3><div class="menu-list">' +
+      '<button class="btn btn-gold" type="button" id="m-close">対局に戻る</button>' +
+      '<button class="btn btn-ghost" type="button" id="m-invite">友だちを招待</button>' +
+      '<button class="btn btn-ghost" type="button" id="m-rules">このゲームのルール</button>' +
+      '<button class="btn btn-ghost" type="button" id="m-leave">部屋を出る</button></div>', { onBackdrop: closeMenu });
+    $('m-close').addEventListener('click', closeMenu);
+    $('m-invite').addEventListener('click', () => { if (online) invite(online.code); });
+    $('m-rules').addEventListener('click', () => {
+      UI.openDialog('<h3>このゲームのルール</h3><p>ホストが選んだルールです。</p>' + ruleSummaryHTML() +
+        '<div class="btns"><button class="btn btn-gold" type="button" id="m-back">閉じる</button></div>', { onBackdrop: closeMenu });
+      $('m-back').addEventListener('click', closeMenu);
+    });
+    $('m-leave').addEventListener('click', () => confirmLeave(false));
+  }
+
+  async function invite(code) {
+    const url = inviteURL(code);
+    const text = '大富豪で遊ぼう！ 部屋コード ' + code;
+    if (navigator.share) {
+      try { await navigator.share({ title: '大富豪', text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(text + '\n' + url);
+      UI.toast('招待リンクをコピーしました。LINEなどに貼り付けて送ってください', 3500);
+    } catch (e) {
+      UI.toast('このリンクを送ってください：' + url, 6000);
+    }
+  }
+
+  function renderOnline() {
+    const wrap = $('online-wrap');
+    const o = online;
+    if (!o) { renderOnlineEntry(wrap); return; }
+    const v = o.view;
+    if (!v) {
+      wrap.innerHTML = '<section class="online-wait"><p class="wait-big">' + (o.status === 'retry' ? 'サーバーにつなぎ直しています…' : '部屋に入っています…') +
+        '</p><p class="row-desc">部屋コード <b class="code-inline">' + esc(o.code) + '</b></p><button class="btn btn-ghost" type="button" id="on-cancel">やめる</button></section>';
+      $('on-cancel').addEventListener('click', () => leaveRoom(false));
+      return;
+    }
+    if (v.phase === 'lobby') { renderLobby(wrap, o, v); return; }
+    wrap.innerHTML = '<section class="online-wait"><p class="wait-big">対局中です</p><button class="btn btn-gold" type="button" id="on-return">対局に戻る</button></section>';
+    $('on-return').addEventListener('click', () => { showScreen('game'); UI.renderAll(); reaskOnline(); });
+  }
+
+  function renderOnlineEntry(wrap) {
+    wrap.innerHTML =
+      '<section><h3 class="sect-title">あなたの名前<small>ほかの人に表示されます</small></h3><div class="card-panel"><div class="row">' +
+      '<input class="name-input wide" id="on-name" maxlength="8" placeholder="名前（8文字まで）" autocomplete="nickname" value="' + esc(onlineName()) + '"></div></div></section>' +
+      '<section><h3 class="sect-title">部屋を作る</h3><div class="card-panel"><div class="row col"><div class="row-desc">部屋を作ると招待リンクができます。LINEなどで友だちに送ってください。人数が足りない席にはAIロボットが入ります。</div>' +
+      '<button class="btn btn-gold" type="button" id="on-create">部屋を作る</button></div></div></section>' +
+      '<section><h3 class="sect-title">部屋に入る<small>招待された5文字のコード</small></h3><div class="card-panel"><div class="row join-row">' +
+      '<input class="code-input" id="on-code" maxlength="5" placeholder="ABCDE" autocomplete="off" autocapitalize="characters" spellcheck="false" value="' + esc(onlineDraftCode) + '">' +
+      '<button class="btn btn-ghost" type="button" id="on-join">入る</button></div></div></section>';
+    const nameIn = $('on-name');
+    const saveName = () => { settings.name = D.Online ? D.Online.cleanName(nameIn.value) : nameIn.value.trim().slice(0, 8); save(); };
+    nameIn.addEventListener('change', saveName);
+    $('on-create').addEventListener('click', () => { saveName(); SND.unlock(); joinRoom(D.Net.newRoomCode()); });
+    const doJoin = () => {
+      saveName();
+      SND.unlock();
+      const code = $('on-code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!/^[A-Z0-9]{5}$/.test(code)) { UI.toast('部屋コードは英数字5文字です'); return; }
+      onlineDraftCode = code;
+      joinRoom(code);
+    };
+    $('on-join').addEventListener('click', doJoin);
+    $('on-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+    if (onlineDraftCode && !onlineName()) setTimeout(() => nameIn.focus(), 50);
+  }
+
+  function renderLobby(wrap, o, v) {
+    const n = v.settings.players;
+    const rows = v.members.map((m) => '<div class="member"><span class="dot ' + (m.connected ? 'on' : 'off') + '"></span>' +
+      '<span class="mname">' + esc(m.name) + (m.you ? '<small>（あなた）</small>' : '') + '</span>' + (m.host ? '<span class="host-chip">ホスト</span>' : '') + '</div>').join('');
+    let ai = '';
+    for (let i = v.members.length; i < n; i++) ai += '<div class="member ai"><span class="dot ai"></span><span class="mname">AIロボット</span></div>';
+    wrap.innerHTML =
+      '<section class="room-head"><div class="room-label">部屋コード</div><div class="room-code">' + esc(v.code) + '</div>' +
+      '<button class="btn btn-gold" type="button" id="on-invite">友だちを招待</button>' +
+      '<p class="row-desc invite-url">' + esc(inviteURL(v.code)) + '</p></section>' +
+      '<section><h3 class="sect-title">参加者<small>' + v.members.length + '人 ＋ AIロボット' + Math.max(0, n - v.members.length) + '体</small></h3>' +
+      '<div class="card-panel member-list">' + rows + ai + '</div></section>' +
+      '<section id="on-settings"></section>' +
+      '<section class="lobby-actions" id="on-actions"></section>';
+    $('on-invite').addEventListener('click', () => invite(v.code));
+    const box = $('on-settings');
+    if (v.host) {
+      box.innerHTML = '<h3 class="sect-title">設定<small>ホストだけが変えられます</small></h3>';
+      const panel = document.createElement('div');
+      panel.className = 'card-panel';
+      const min = Math.max(3, v.members.length);
+      panel.appendChild(row('人数', '足りない席はAIロボット', seg([3, 4, 5, 6].map((x) => ({ v: x, label: x + '人' })), n,
+        (x) => { if (x >= min) o.conn.send({ t: 'config', players: x }); else UI.toast('部屋にいる人数より少なくはできません'); })));
+      panel.appendChild(row('AIの強さ', '', seg([{ v: 'easy', label: 'やさしい' }, { v: 'normal', label: 'ふつう' }], v.settings.aiLevel,
+        (x) => o.conn.send({ t: 'config', aiLevel: x }))));
+      const rr = row('ルール', presetLabel() + '（ローカルルール ' + localRuleCount(store.rules) + '個）。あなたの「ルールと設定」のルールで遊びます。', null);
+      panel.appendChild(rr);
+      box.appendChild(panel);
+      $('on-actions').innerHTML = '<button class="btn btn-gold btn-lg" type="button" id="on-start">この部屋で始める</button>' +
+        '<button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
+      $('on-start').addEventListener('click', () => { SND.unlock(); o.conn.send({ t: 'start', rules: store.rules }); $('on-start').disabled = true; });
+    } else {
+      box.innerHTML = '<h3 class="sect-title">設定</h3><div class="card-panel"><div class="row"><div class="row-text"><div class="row-name">' + n + '人で対戦</div>' +
+        '<div class="row-desc">ルールと人数はホストが決めます。AIの強さ：' + (v.settings.aiLevel === 'easy' ? 'やさしい' : 'ふつう') + '</div></div></div></div>';
+      $('on-actions').innerHTML = '<p class="wait-big">ホストが始めるのを待っています…</p><button class="btn btn-ghost" type="button" id="on-leave">部屋を出る</button>';
+    }
+    $('on-leave').addEventListener('click', () => confirmLeave(false));
   }
 
   // ─────────────────────────────────────────────
@@ -732,6 +1065,9 @@
     $('btn-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
     $('btn-resume').addEventListener('click', () => { SND.unlock(); resumeMatch(); });
     $('btn-rules').addEventListener('click', () => showScreen('rules'));
+    $('btn-online').addEventListener('click', () => { SND.unlock(); openOnline(); });
+    $('online-back').innerHTML = A.icon('back');
+    $('online-back').addEventListener('click', () => { if (online) confirmLeave(false); else showScreen('title'); });
     $('rules-back').addEventListener('click', () => showScreen('title'));
     $('rules-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
     $('g-menu').addEventListener('click', openMenu);
@@ -752,6 +1088,13 @@
       rz = requestAnimationFrame(() => { if (S && !$('scr-game').hidden) UI.renderAll(); });
     });
 
+    // 招待リンク（…#r-ABCDE）から開いたら、その部屋へ
+    const hm = location.hash.match(/^#r-([A-Za-z0-9]{5})$/);
+    if (hm && D.Net.available()) {
+      showScreen('title');
+      openOnline(hm[1].toUpperCase());
+      return;
+    }
     if (data && data.match) {
       store.match = data.match;
       if (Array.isArray(data.log)) store.log = data.log;
@@ -761,7 +1104,7 @@
   }
 
   // 動作確認用
-  D.App = { get state() { return S; }, newMatch, resumeMatch, settings, store };
+  D.App = { get state() { return S; }, get online() { return online; }, newMatch, resumeMatch, openOnline, settings, store };
 
   const hot = globalThis.claude && globalThis.claude.hot;
   if (hot && hot.ready) hot.ready(start);

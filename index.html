@@ -32,6 +32,7 @@
       <div class="title-actions">
         <button class="btn btn-gold btn-lg" id="btn-start" type="button">対戦する</button>
         <button class="btn btn-ghost btn-lg" id="btn-resume" type="button" hidden>つづきから</button>
+        <button class="btn btn-ghost btn-lg" id="btn-online" type="button" hidden>オンライン対戦</button>
         <button class="btn btn-ghost" id="btn-rules" type="button">ルールと設定</button>
       </div>
       <p class="title-foot" id="title-foot"></p>
@@ -50,6 +51,17 @@
     <footer class="rules-foot">
       <button class="btn btn-gold btn-lg" id="rules-start" type="button">この設定で対戦する</button>
     </footer>
+  </section>
+
+  <section id="scr-online" class="screen rules online" hidden>
+    <header class="bar">
+      <button class="icon-btn" id="online-back" type="button" aria-label="戻る"></button>
+      <h2>オンライン対戦</h2>
+      <span class="conn" id="online-conn" aria-live="polite"></span>
+    </header>
+    <div class="rules-scroll">
+      <div class="rules-wrap" id="online-wrap"></div>
+    </div>
   </section>
 
   <section id="scr-game" class="screen game" hidden>
@@ -112,6 +124,7 @@
 <script src="js/textures.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/net.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

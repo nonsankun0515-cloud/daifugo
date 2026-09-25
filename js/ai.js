@@ -352,13 +352,20 @@
 
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
   // 考えている間も画面が止まらないように、ときどき処理を譲る（タイマーより間引かれにくい MessageChannel を使う）
-  const yieldUI = (() => {
-    if (typeof MessageChannel === 'undefined') return () => new Promise((r) => setTimeout(r, 0));
-    const ch = new MessageChannel();
-    const waiting = [];
-    ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
-    return () => new Promise((r) => { waiting.push(r); ch.port2.postMessage(0); });
-  })();
+  // 読み込み時には何も作らない（サーバーでは読み込み時の非同期処理が禁止されているため）
+  let yieldImpl = null;
+  function yieldUI() {
+    if (!yieldImpl) {
+      if (typeof MessageChannel === 'undefined') yieldImpl = () => new Promise((r) => setTimeout(r, 0));
+      else {
+        const ch = new MessageChannel();
+        const waiting = [];
+        ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
+        yieldImpl = () => new Promise((r) => { waiting.push(r); ch.port2.postMessage(0); });
+      }
+    }
+    return yieldImpl();
+  }
 
   async function chooseTurnMC(S, seat, budgetMs) {
     const h = chooseTurnHeuristic(S, seat, 0);

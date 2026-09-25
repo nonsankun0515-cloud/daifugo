@@ -2,3 +2,6 @@
 dist/
 __pycache__/
 *.pyc
+# サーバーのツール類
+server/node_modules/
+server/.wrangler/

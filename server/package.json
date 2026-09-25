@@ -1,0 +1,12 @@
+{
+  "name": "daifugo-nonsankun0515",
+  "private": true,
+  "description": "大富豪のオンライン対戦サーバー（Cloudflare Workers + Durable Objects）",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "4.139.0"
+  }
+}

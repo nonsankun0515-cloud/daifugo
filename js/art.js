@@ -222,6 +222,17 @@
       '</svg>';
   }
 
+  // オンライン対戦の相手（人）。席ごとに色を変える
+  const PERSON_COLORS = ['#e9c46a', '#8ecae6', '#f4a3b5', '#a7d98b', '#c9b3ff', '#f6bd7c'];
+  function personSVG(i) {
+    const c = PERSON_COLORS[i % PERSON_COLORS.length];
+    return '<svg viewBox="0 0 64 64" class="person" aria-hidden="true">' +
+      '<circle cx="32" cy="32" r="30" fill="#1d1a16"/>' +
+      '<circle cx="32" cy="25" r="10.5" fill="' + c + '"/>' +
+      '<path d="M12.5 54c3-11.5 11.2-17.5 19.5-17.5S48.5 42.5 51.5 54" fill="' + c + '"/>' +
+      '</svg>';
+  }
+
   function humanSVG() {
     return '<svg viewBox="0 0 64 64" class="human" aria-hidden="true">' +
       '<circle cx="32" cy="32" r="30" fill="#1b2a22"/>' +
@@ -255,5 +266,5 @@
       (ICON_PATHS[name] || '') + '</svg>';
   }
 
-  D.Art = { faceSVG, backDataURI, BACKS, SHARED_DEFS, robotSVG, humanSVG, ROBOTS, icon, suitIcon, pip, SUIT_SHAPE, INK };
+  D.Art = { faceSVG, backDataURI, BACKS, SHARED_DEFS, robotSVG, humanSVG, personSVG, ROBOTS, icon, suitIcon, pip, SUIT_SHAPE, INK };
 })();

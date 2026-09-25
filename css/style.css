@@ -363,6 +363,72 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   -webkit-user-select: text;
 }
 
+/* ───────── オンライン対戦 ───────── */
+.online .conn { font-size: 12px; font-weight: 700; color: var(--gold-light); text-align: right; white-space: nowrap; }
+.name-input.wide { width: 100%; max-width: 100%; font-size: 17px; padding: 11px 12px; }
+.join-row { gap: 10px; }
+.code-input {
+  flex: 1;
+  min-width: 0;
+  font: 900 24px/1 var(--font-num);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gold-light);
+  border: 1px solid rgba(217, 178, 90, 0.5);
+  border-radius: 10px;
+  padding: 10px 8px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.room-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 18px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(217, 178, 90, 0.45);
+  background: radial-gradient(120% 140% at 50% 0%, rgba(217, 178, 90, 0.16), rgba(0, 0, 0, 0) 70%);
+}
+.room-label { font-size: 12px; letter-spacing: 0.2em; color: var(--ivory-dim); }
+.room-code {
+  font-family: var(--font-num);
+  font-weight: 900;
+  font-size: clamp(40px, 12vw, 58px);
+  letter-spacing: 0.22em;
+  padding-left: 0.22em;
+  line-height: 1;
+  background: linear-gradient(180deg, #fff4c9, #e5bd5e 55%, #b88a2c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.invite-url { word-break: break-all; font-size: 12px; margin: 0; -webkit-user-select: text; user-select: text; }
+.member-list .member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(217, 178, 90, 0.12);
+}
+.member-list .member:first-child { border-top: 0; }
+.member .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: #6d6a66; }
+.member .dot.on { background: #6fd39a; box-shadow: 0 0 8px rgba(111, 211, 154, 0.7); }
+.member .dot.ai { background: transparent; border: 1.5px dashed rgba(217, 178, 90, 0.6); }
+.member .mname { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member .mname small { font-weight: 500; color: var(--ivory-dim); margin-left: 4px; }
+.member.ai .mname { color: var(--ivory-dim); font-weight: 500; }
+.host-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; color: #241a07; background: linear-gradient(180deg, #fbe7a4, #d6a93f); }
+.lobby-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
+.online-wait { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 0; text-align: center; }
+.wait-big { font-size: 16px; font-weight: 700; color: var(--gold-light); margin: 0; }
+.code-inline { font-family: var(--font-num); letter-spacing: 0.15em; color: var(--gold-light); }
+
 /* ───────── 対局画面（遊ぶ場所はフェルトの内側） ───────── */
 .game {
   display: flex;
@@ -415,7 +481,11 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
     0 8px 18px rgba(0, 0, 0, 0.55);
   transition: box-shadow 0.3s;
 }
+.seat .ava .face { display: contents; }
 .seat .ava svg { width: 82%; height: 82%; }
+.seat .ava svg.person { width: 100%; height: 100%; border-radius: 50%; }
+.seat.away .ava { opacity: 0.45; }
+.seat.away .plate::after { content: '離席中'; font-size: 10px; font-weight: 700; color: #f3a6a6; }
 .seat.turn .ava {
   box-shadow: 0 0 0 2px #f3dd9b, 0 0 0 3.5px #7a5a1c, 0 0 0 5px rgba(243, 221, 155, 0.9), 0 0 26px 8px rgba(233, 196, 106, 0.55);
   animation: pulse 1.5s ease-in-out infinite;

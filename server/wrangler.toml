@@ -1,0 +1,14 @@
+# 大富豪 オンライン対戦サーバー
+name = "daifugo-nonsankun0515"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# 部屋ごとに1つの Durable Object（ルール判定・AI・状態の保存）
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# 無料プランは SQLite 版の Durable Object
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
