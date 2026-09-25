@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>大富豪 AIベンチマーク</title>
+<style>body { font: 14px/1.6 system-ui, sans-serif; margin: 16px; background: #f6f5f1; color: #1d1d1b; } pre { white-space: pre-wrap; }</style>
+</head>
+<body>
+<p>つよいAI（1体）vs ふつうAI（3体）。URLの ?games=40&budget=300&rules=mine で変更。</p>
+<pre id="out">実行中…</pre>
+<script src="../js/cards.js"></script>
+<script src="../js/rules.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/ai.js"></script>
+<script>
+(async function () {
+  const D = globalThis.DFG, E = D.Engine, AI = D.AI, RU = D.Rules;
+  const qs = new URLSearchParams(location.search);
+  const games = +(qs.get('games') || 40);
+  const budget = +(qs.get('budget') || 300);
+  const rulesKey = qs.get('rules') || 'mine';
+  const challenger = qs.get('level') || 'hard';
+  if (qs.get('rollout')) AI.setRollout(qs.get('rollout'));
+  const rules = RU.PRESETS.find((p) => p.key === rulesKey).rules;
+  const out = document.getElementById('out');
+  const res = { games: 0, hardPlaceSum: 0, normalPlaceSum: 0, normalCount: 0, firsts: 0, ms: 0 };
+  globalThis.BENCH = res;
+  const t0 = performance.now();
+  for (let m = 0; res.games < games; m++) {
+    const hardSeat = m % 4;
+    const S = E.createMatch({ rules, players: [0, 1, 2, 3].map((i) => ({ name: 'P' + i, level: i === hardSeat ? challenger : 'normal' })) });
+    for (let g = 0; g < 4 && res.games < games; g++) {
+      E.startGame(S);
+      let q;
+      while ((q = E.getRequest(S))) {
+        const lv = S.players[q.seat].level;
+        const a = lv === 'hard' ? await AI.decide(S, q, 'hard', budget) : AI.decideSync(S, q, lv);
+        E.apply(S, a);
+      }
+      S.prevRanking.forEach((seat, i) => {
+        if (seat === hardSeat) { res.hardPlaceSum += i; if (i === 0) res.firsts++; }
+        else { res.normalPlaceSum += i; res.normalCount++; }
+      });
+      res.games++;
+      res.ms = performance.now() - t0;
+      out.textContent = challenger + ' 平均順位 ' + (res.hardPlaceSum / res.games).toFixed(2) + '（大富豪 ' + res.firsts + '回）／ ふつう平均 ' +
+        (res.normalPlaceSum / res.normalCount).toFixed(2) + '／ ' + res.games + '/' + games + '戦 ' + (res.ms / 1000).toFixed(0) + '秒';
+    }
+  }
+  res.done = true;
+})();
+</script>
+</body>
+</html>

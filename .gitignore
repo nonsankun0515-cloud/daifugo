@@ -1,0 +1,4 @@
+# ビルドの途中生成物（docs/ は GitHub Pages で公開するので含める）
+dist/
+__pycache__/
+*.pyc
