@@ -1407,26 +1407,6 @@ a.btn { text-decoration: none; }
 }
 @keyframes bookIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ───────── 履歴 ───────── */
-.log {
-  position: absolute;
-  right: 0; top: 0; bottom: 0;
-  width: min(340px, 86vw);
-  z-index: 30;
-  background: linear-gradient(180deg, rgba(24, 19, 15, 0.97), rgba(12, 9, 7, 0.97));
-  border-left: 1px solid rgba(217, 178, 90, 0.4);
-  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
-}
-.log header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--lacquer-line); }
-.log header h3 { margin: 0; font-family: var(--font-display); font-weight: 800; letter-spacing: 0.1em; color: var(--gold-light); font-size: 17px; }
-.log ol { list-style: none; margin: 0; padding: 8px 14px 18px; overflow-y: auto; flex: 1; font-size: 13px; line-height: 1.5; }
-.log li { padding: 3px 0; border-bottom: 1px dashed rgba(217, 178, 90, 0.1); }
-.log li.sys { color: var(--gold-light); font-weight: 700; }
-.log li.flow { color: var(--muted); text-align: center; font-size: 12px; }
-.log li.game { color: var(--gold-light); font-family: var(--font-display); font-weight: 800; letter-spacing: 0.08em; margin-top: 8px; }
-
 /* ───────── 広い画面：楕円のテーブルと太いひじ掛け ───────── */
 @media (min-width: 900px) and (min-height: 560px) {
   :root {
@@ -1586,7 +1566,6 @@ a.btn { text-decoration: none; }
         <div class="hud-right">
           <button class="icon-btn chat-btn" data-chat-btn type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" hidden></span></button>
           <button class="icon-btn" id="g-book" type="button" aria-label="ルールブック"></button>
-          <button class="icon-btn" id="g-log" type="button" aria-label="履歴"></button>
           <button class="icon-btn" data-sound-btn type="button" aria-label="効果音"></button>
         </div>
       </header>
@@ -1595,10 +1574,6 @@ a.btn { text-decoration: none; }
         <div class="pile" id="pile"></div>
         <div class="status" id="status"></div>
       </div>
-      <aside class="log" id="log" hidden>
-        <header><h3>履歴</h3><button class="icon-btn" id="log-close" type="button" aria-label="履歴を閉じる"></button></header>
-        <ol id="log-list"></ol>
-      </aside>
     </div>
     <div class="me" id="me">
       <div class="prompt" id="prompt" hidden>
@@ -4926,7 +4901,6 @@ a.btn { text-decoration: none; }
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
     soundOn: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a7.5 7.5 0 010 11"/>',
     soundOff: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>',
-    log: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
     hint: '<path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/>',
     rules: '<path d="M5 4h11l3 3v13H5z"/><path d="M9 10h7M9 14h7M9 18h4"/>',
     cw: '<path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/>',
@@ -5233,7 +5207,6 @@ a.btn { text-decoration: none; }
     onSelChange: null,
     handEls: new Map(),
     seatEls: {},
-    logLines: [],
   };
 
   // ─────────────────────────────────────────────
@@ -5914,24 +5887,6 @@ a.btn { text-decoration: none; }
   const LOCK_NAMES = { suit: '縛り', partial: '片縛り', number: '階段縛り', geki: '激縛り' };
   const REVO_NAMES = { normal: '革命', seq: '階段革命', coup: 'クーデター', omen: 'オーメン', great: '大革命' };
 
-  function logLine(text, cls) {
-    UI.logLines.push({ text, cls: cls || '' });
-    if (UI.logLines.length > 400) UI.logLines.splice(0, UI.logLines.length - 400);
-    const ol = $('log-list');
-    if (ol && !$('log').hidden) {
-      const li = document.createElement('li');
-      li.className = cls || '';
-      li.textContent = text;
-      ol.appendChild(li);
-      ol.scrollTop = ol.scrollHeight;
-    }
-  }
-  function renderLog() {
-    const ol = $('log-list');
-    ol.innerHTML = UI.logLines.map((l) => '<li class="' + l.cls + '">' + esc(l.text) + '</li>').join('');
-    ol.scrollTop = ol.scrollHeight;
-  }
-
   /** 状態に合わせたうえで、同じ束の後ろにあるカード交換を巻き戻す（交換アニメーションで二重に動かさないため） */
   function syncBefore(evs, i) {
     syncVM();
@@ -5955,14 +5910,12 @@ a.btn { text-decoration: none; }
         case 'deal': {
           syncBefore(evs, i);
           vm = UI.vm;
-          logLine('第' + S.gameNo + 'ゲーム', 'game');
           renderAll();
           await animDeal();
           break;
         }
         case 'start': {
           vm.turn = ev.leader;
-          logLine(nameOf(ev.leader) + ' から始めます', 'sys');
           renderAll();
           break;
         }
@@ -5971,19 +5924,16 @@ a.btn { text-decoration: none; }
           vm.turn = null;
           renderStatus();
           await animPlay(ev.seat, ev.play.cards);
-          logLine(nameOf(ev.seat) + '：' + E.describePlay(ev.play));
           break;
         }
         case 'pass': {
           SND.play('pass');
           bubble(ev.seat, 'パス');
-          logLine(nameOf(ev.seat) + '：パス');
           await sleep(260 * UI.speed);
           break;
         }
         case 'flow': {
           await animFlow();
-          logLine('— 場が流れた —', 'flow');
           vm.turn = ev.leader;
           renderStatus();
           renderSeats();
@@ -5998,7 +5948,6 @@ a.btn { text-decoration: none; }
           renderStatus();
           const nm = REVO_NAMES[ev.kind] || '革命';
           await banner(ev.on ? nm : nm === '革命' ? '革命返し' : nm, 'revo', ev.on ? '強さが逆転！' : '強さが元に戻った', 1400);
-          logLine('★ ' + nameOf(ev.seat) + ' の' + (ev.on ? nm : '革命返し'), 'sys');
           renderHand();
           break;
         }
@@ -6007,26 +5956,22 @@ a.btn { text-decoration: none; }
           SND.play('special');
           renderStatus();
           await banner(ev.by === 'J' ? 'Jバック' : '2バック', 'cool', ev.on ? '場が流れるまで強さが逆転' : '強さが元に戻った');
-          logLine('★ ' + (ev.by === 'J' ? 'Jバック' : '2バック'), 'sys');
           break;
         }
         case 'cut': {
           SND.play('cut');
           await banner(FLOW_NAMES[ev.kind], '', '場が流れる', 950);
-          logLine('★ ' + FLOW_NAMES[ev.kind], 'sys');
           break;
         }
         case 'sand': {
           SND.play('cut');
           sandstorm();
           await banner('砂嵐', '', '最強の役！場が流れる', 1200);
-          logLine('★ 砂嵐', 'sys');
           break;
         }
         case 'spade3': {
           SND.play('cut');
           await banner('スペ3返し', '', 'ジョーカーを破った！', 1100);
-          logLine('★ スペ3返し', 'sys');
           break;
         }
         case 'stop': {
@@ -6034,14 +5979,12 @@ a.btn { text-decoration: none; }
           await animPlay(ev.seat, ev.play.cards, { stop: ev.kind });
           if (ev.kind === 'sand') sandstorm();
           await banner(STOP_NAMES[ev.kind], ev.kind === 'sand' ? '' : 'cool', nameOf(ev.seat) + 'が止めた！', 1150);
-          logLine('★ ' + nameOf(ev.seat) + ' の' + STOP_NAMES[ev.kind] + '（' + nameOf(ev.against) + 'の効果を止めた）', 'sys');
           break;
         }
         case 'skip': {
           SND.play('special');
           for (const s of ev.seats) bubble(s, 'スキップ', true);
           await banner('スキップ', 'cool', ev.seats.map(nameOf).join('・') + ' を飛ばす', 950);
-          logLine('★ スキップ：' + ev.seats.map(nameOf).join('・'), 'sys');
           break;
         }
         case 'give': {
@@ -6051,7 +5994,6 @@ a.btn { text-decoration: none; }
             await animTransfer(ev.from, ev.to, ev.cards, involved);
             if (ev.to === UI.human) toast(ev.label + 'で受け取った：' + ev.cards.map(C.cardLabel).join(' '));
           }
-          logLine(nameOf(ev.from) + '：' + ev.label + ' ' + ev.cards.length + '枚' + (involved && ev.cards.length ? '（' + ev.cards.map(C.cardLabel).join(' ') + '）' : ''), 'sys');
           break;
         }
         case 'discard': {
@@ -6059,12 +6001,11 @@ a.btn { text-decoration: none; }
             banner('10捨て', 'cool', nameOf(ev.seat) + 'が' + ev.cards.length + '枚捨てた', 1000);
             await animDiscard(ev.seat, ev.cards);
           }
-          logLine(nameOf(ev.seat) + '：10捨て ' + ev.cards.map(C.cardLabel).join(' '), 'sys');
           break;
         }
         case 'bomb': {
           if (!ev.ranks.length) {
-            logLine('★ 12ボンバー：' + nameOf(ev.seat) + (ev.none ? 'の手札に指名できる数字がない' : 'は指名しなかった'), 'sys');
+            bubble(ev.seat, ev.none ? '指名できる数字なし' : '指名しない');
             break;
           }
           SND.play('bomb');
@@ -6074,8 +6015,6 @@ a.btn { text-decoration: none; }
           const jobs = [];
           for (const s of Object.keys(ev.removed)) jobs.push(animDiscard(+s, ev.removed[s]));
           await Promise.all(jobs);
-          logLine('★ 12ボンバー：' + ev.ranks.map((r) => C.rankLabel(r)).join('・') + '（' +
-            (Object.keys(ev.removed).map((s) => nameOf(+s) + ev.removed[s].length + '枚').join('、') || 'だれも持っていなかった') + '）', 'sys');
           break;
         }
         case 'pickup': {
@@ -6091,7 +6030,6 @@ a.btn { text-decoration: none; }
             vm.hands[ev.seat] = vm.hands[ev.seat].concat(ev.cards);
             renderHand(); renderSeats();
           }
-          logLine(nameOf(ev.seat) + '：A拾い ' + (ev.cards.length ? ev.cards.map(C.cardLabel).join(' ') : 'なし'), 'sys');
           break;
         }
         case 'reverse': {
@@ -6099,7 +6037,6 @@ a.btn { text-decoration: none; }
           SND.play('special');
           renderStatus();
           await banner('リバース', 'cool', '順番が逆回りに', 900);
-          logLine('★ 9リバース', 'sys');
           break;
         }
         case 'lock': {
@@ -6110,14 +6047,12 @@ a.btn { text-decoration: none; }
           const sym = suits.map((s) => C.SUIT_SYM[s]).join('');
           const sub = ev.kind === 'number' ? '次も1つ上の数字だけ' : ev.kind === 'geki' ? sym + ' の1つ上の数字だけ' : ev.kind === 'partial' ? sym + ' を含めて出す' : sym + ' しか出せない';
           await banner(LOCK_NAMES[ev.kind], 'small', sub, 900);
-          logLine('★ ' + LOCK_NAMES[ev.kind] + '（' + sub + '）', 'sys');
           break;
         }
         case 'constraint': {
           vm.constraint = { rank: ev.rank, from: ev.from };
           renderStatus();
           bubble(S.lastSeat == null ? UI.human : S.lastSeat, '次は' + C.rankLabel(ev.rank) + 'だけ', true);
-          logLine('★ ' + C.rankLabel(ev.from) + '→' + C.rankLabel(ev.rank) + '：次は ' + C.rankLabel(ev.rank) + ' だけ', 'sys');
           break;
         }
         case 'finish': {
@@ -6128,7 +6063,6 @@ a.btn { text-decoration: none; }
           SND.play(ev.seat === UI.human && ev.place === 1 ? 'fanfare' : 'finish');
           await banner(ev.seat === UI.human ? (ev.place === 1 ? '一番上がり！' : ev.place + '位で上がり') : '上がり',
             ev.seat === UI.human ? '' : 'small', nameOf(ev.seat) + '（' + ev.place + '位）', 1100);
-          logLine('◆ ' + nameOf(ev.seat) + ' 上がり（' + ev.place + '位）', 'sys');
           break;
         }
         case 'foul': {
@@ -6138,7 +6072,6 @@ a.btn { text-decoration: none; }
           renderSeats(); renderMe();
           SND.play('foul');
           await banner('反則上がり', 'foul', nameOf(ev.seat) + 'は最下位', 1300);
-          logLine('◆ ' + nameOf(ev.seat) + ' 反則上がり（最下位）', 'sys');
           break;
         }
         case 'miyako': {
@@ -6147,14 +6080,12 @@ a.btn { text-decoration: none; }
           renderSeats(); renderMe();
           SND.play('foul');
           await banner('都落ち', 'foul', nameOf(ev.seat) + 'は大貧民に', 1400);
-          logLine('◆ 都落ち：' + nameOf(ev.seat) + ' は大貧民', 'sys');
           break;
         }
         case 'gekokujo': {
           SND.play('revolution');
           shake();
           await banner('下剋上', 'revo', nameOf(ev.seat) + 'が一番上がり！身分が全部ひっくり返る', 1700);
-          logLine('◆ 下剋上！', 'sys');
           break;
         }
         case 'tenpen': {
@@ -6163,39 +6094,29 @@ a.btn { text-decoration: none; }
           syncBefore(evs, i);
           vm = UI.vm;
           renderAll();
-          logLine('◆ 天変地異：' + nameOf(ev.seat) + ' ⇔ ' + nameOf(ev.with), 'sys');
           break;
         }
         case 'greatRevolution': {
           vm.hands[ev.seat] = [];
           SND.play('fanfare');
           await banner('大革命', 'revo', nameOf(ev.seat) + 'はそのまま上がり', 1500);
-          logLine('◆ 大革命：' + nameOf(ev.seat), 'sys');
           break;
         }
         case 'lucky': {
           vm.hands[ev.seat] = [];
           SND.play('fanfare');
           await banner('ラッキーセブン', '', nameOf(ev.seat) + 'はそのまま上がり', 1400);
-          logLine('◆ ラッキーセブン：' + nameOf(ev.seat), 'sys');
           break;
         }
         case 'exchange': {
           const faceUp = ev.from === UI.human || ev.to === UI.human;
           await animTransfer(ev.from, ev.to, ev.cards, faceUp);
-          const what = faceUp ? '（' + ev.cards.map(C.cardLabel).join(' ') + '）' : '';
-          logLine('交換：' + nameOf(ev.from) + ' → ' + nameOf(ev.to) + ' ' + ev.cards.length + '枚' + what);
           break;
         }
         case 'last': {
           vm.out[ev.seat] = true;
           vm.places[ev.seat] = S.finished.indexOf(ev.seat) + 1;
           renderSeats(); renderMe();
-          logLine('◆ ' + nameOf(ev.seat) + ' が最後', 'sys');
-          break;
-        }
-        case 'over': {
-          logLine('— 第' + S.gameNo + 'ゲーム終了 —', 'flow');
           break;
         }
         default:
@@ -6285,9 +6206,9 @@ a.btn { text-decoration: none; }
   }
 
   Object.assign(UI, {
-    syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe, renderLog,
+    syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe,
     playEvents, banner, toast, bubble, flash, shake, setThinking, setSelectable, clearSelection, setDim, setHint,
-    showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable, logLine,
+    showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable,
     nameOf, titleOfSeat, TITLE_CLASS, esc, sleep, fmtPts, ptsClass, fly, rectAt, bubbleAt,
   });
   D.UI = UI;
@@ -6370,7 +6291,7 @@ a.btn { text-decoration: none; }
       '<li>明るく見えるのが今出せるカードです（「ルールと設定」で切り替え）。</li>' +
       '<li>迷ったら<b>「ヒント」</b>でおすすめの出し方がわかります。</li>' +
       '<li>止め札・カードを渡す・捨てるなど、選べる場面では画面がたずねてくれます。</li>' +
-      '<li>上の' + A.icon('log', 14) + 'で今までの流れ、' + A.icon('book', 14) + 'でこのルールブックが見られます。</li>' +
+      '<li>上の' + A.icon('book', 14) + 'でこのルールブックが見られます。出したカードの履歴は見られません（覚えておくのも腕のうち）。</li>' +
       '</ul>');
     return h;
   }
@@ -6830,6 +6751,7 @@ a.btn { text-decoration: none; }
   store.settings = Object.assign({}, DEFAULT_SETTINGS, store.settings || {});
   store.rules = store.rules ? RU.migrate(store.rules) : Object.assign({}, RU.MINE);
   store.rating = Object.assign(newRating(), store.rating || {});
+  delete store.log; // 以前の「履歴」（出したカードの記録）。カウンティングできないように履歴はなくした
   // 七並べ・スピード
   store.sevens = Object.assign({}, store.sevens);
   store.sevens.settings = Object.assign({ players: 4, level: 'normal', games: 10 }, store.sevens.settings);
@@ -7107,8 +7029,6 @@ a.btn { text-decoration: none; }
     book.game = game || book.game;
     if (tab) book.tab = tab;
     book.src = src || '';
-    const lg = $('log');
-    if (lg) lg.hidden = true;
     if (D.OnlineClient) D.OnlineClient.closeChat();
     $('book').hidden = false;
     renderBook();
@@ -7558,7 +7478,6 @@ a.btn { text-decoration: none; }
   function openChat() {
     const o = OC.cur;
     if (!o) return;
-    document.querySelectorAll('.log').forEach((l) => { l.hidden = true; });
     CM.closeBook();
     $('chat').hidden = false;
     o.unread = 0;
@@ -8099,7 +8018,6 @@ a.btn { text-decoration: none; }
     UI.S = S;
     UI.human = 0;
     UI.seatInfo = null;
-    UI.logLines = [];
     UI.resetTable();
     fastForward = false;
     showScreen('game');
@@ -8136,7 +8054,6 @@ a.btn { text-decoration: none; }
     }
     UI.S = S;
     UI.human = 0;
-    UI.logLines = Array.isArray(store.log) ? store.log.slice(-200) : [];
     UI.resetTable();
     fastForward = false;
     showScreen('game');
@@ -8150,7 +8067,6 @@ a.btn { text-decoration: none; }
     if (!S || onlineRoom()) return; // オンライン対戦の状態はサーバーが持つ
     try {
       store.match = E.serialize(S);
-      store.log = UI.logLines.slice(-120);
       save();
     } catch (e) { /* 保存できなくても続行 */ }
     saveHot();
@@ -8213,18 +8129,12 @@ a.btn { text-decoration: none; }
         try { evs = E.apply(S, fallbackAction(q)); } catch (e2) { console.error(e2); return; }
       }
       if (S.matchOver) applyRated(); // 演出の途中で閉じてもレートが反映されるように先に
-      if (fastForward) { UI.syncVM(); UI.renderAll(); for (const ev of evs) if (ev.t !== 'deal') logEventQuick(ev); }
+      if (fastForward) { UI.syncVM(); UI.renderAll(); }
       else await UI.playEvents(evs);
       persist();
       if (token !== loopToken) return;
       maybeOfferFastForward();
     }
-  }
-
-  function logEventQuick(ev) {
-    if (ev.t === 'finish') UI.logLine('◆ ' + UI.nameOf(ev.seat) + ' 上がり（' + ev.place + '位）', 'sys');
-    else if (ev.t === 'foul') UI.logLine('◆ ' + UI.nameOf(ev.seat) + ' 反則上がり', 'sys');
-    else if (ev.t === 'play') UI.logLine(UI.nameOf(ev.seat) + '：' + E.describePlay(ev.play));
   }
 
   function fallbackAction(q) {
@@ -8528,7 +8438,7 @@ a.btn { text-decoration: none; }
   /** 途中のレート戦を棄権する（残りのゲームは最下位として計算） */
   function abandonRated() {
     const r = CM.abandonRatedLocal(store.match);
-    if (r) { store.match = null; store.log = []; save(); }
+    if (r) { store.match = null; save(); }
     return r;
   }
   const abandonNote = CM.abandonNote;
@@ -8537,7 +8447,7 @@ a.btn { text-decoration: none; }
   function askAbandon(onAbandoned) {
     CM.askAbandon(savedMatch(), {
       onResume: resumeMatch,
-      onAbandoned: () => { store.match = null; store.log = []; save(); renderHome(); onAbandoned(); },
+      onAbandoned: () => { store.match = null; save(); renderHome(); onAbandoned(); },
     });
   }
 
@@ -8700,7 +8610,6 @@ a.btn { text-decoration: none; }
       if (o.resultsOpen && S.phase !== 'over') { UI.closeDialog(); o.resultsOpen = false; }
       if (first) {
         o.gameShown = true;
-        UI.logLines = [];
         showScreen('game');
         UI.resetTable();
         UI.syncVM();
@@ -8821,7 +8730,7 @@ a.btn { text-decoration: none; }
     const hot = globalThis.claude && globalThis.claude.hot;
     if (hotRegistered || !hot || !hot.snapshot) return;
     hotRegistered = true;
-    try { hot.snapshot(() => ({ match: S ? E.serialize(S) : null, screen: $('scr-game').hidden ? 'title' : 'game', log: UI.logLines.slice(-120) })); } catch (e) { /* 無視 */ }
+    try { hot.snapshot(() => ({ match: S ? E.serialize(S) : null, screen: $('scr-game').hidden ? 'title' : 'game' })); } catch (e) { /* 無視 */ }
   }
 
   // ─────────────────────────────────────────────
@@ -8829,10 +8738,8 @@ a.btn { text-decoration: none; }
   // ─────────────────────────────────────────────
   function init() {
     $('g-menu').innerHTML = A.icon('menu');
-    $('g-log').innerHTML = A.icon('log');
     $('g-book').innerHTML = A.icon('book');
     $('rules-back').innerHTML = A.icon('back');
-    $('log-close').innerHTML = A.icon('close');
     setActionButtons({});
 
     $('btn-rated').addEventListener('click', () => { SND.unlock(); openRated(); });
@@ -8845,8 +8752,6 @@ a.btn { text-decoration: none; }
     $('rules-back').addEventListener('click', () => showScreen('title'));
     $('rules-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
     $('g-menu').addEventListener('click', openMenu);
-    $('g-log').addEventListener('click', () => { const lg = $('log'); lg.hidden = !lg.hidden; if (!lg.hidden) { OC.closeChat(); CM.closeBook(); UI.renderLog(); } });
-    $('log-close').addEventListener('click', () => { $('log').hidden = true; });
 
     document.addEventListener('keydown', (e) => {
       if ($('scr-game').hidden || !$('overlay').hidden) return;
@@ -8866,7 +8771,6 @@ a.btn { text-decoration: none; }
   function restore(data) {
     if (!data || !data.match) return false;
     store.match = data.match;
-    if (Array.isArray(data.log)) store.log = data.log;
     if (data.screen === 'game') { resumeMatch(); return true; }
     return false;
   }

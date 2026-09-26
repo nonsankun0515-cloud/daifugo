@@ -25,7 +25,6 @@
     onSelChange: null,
     handEls: new Map(),
     seatEls: {},
-    logLines: [],
   };
 
   // ─────────────────────────────────────────────
@@ -706,24 +705,6 @@
   const LOCK_NAMES = { suit: '縛り', partial: '片縛り', number: '階段縛り', geki: '激縛り' };
   const REVO_NAMES = { normal: '革命', seq: '階段革命', coup: 'クーデター', omen: 'オーメン', great: '大革命' };
 
-  function logLine(text, cls) {
-    UI.logLines.push({ text, cls: cls || '' });
-    if (UI.logLines.length > 400) UI.logLines.splice(0, UI.logLines.length - 400);
-    const ol = $('log-list');
-    if (ol && !$('log').hidden) {
-      const li = document.createElement('li');
-      li.className = cls || '';
-      li.textContent = text;
-      ol.appendChild(li);
-      ol.scrollTop = ol.scrollHeight;
-    }
-  }
-  function renderLog() {
-    const ol = $('log-list');
-    ol.innerHTML = UI.logLines.map((l) => '<li class="' + l.cls + '">' + esc(l.text) + '</li>').join('');
-    ol.scrollTop = ol.scrollHeight;
-  }
-
   /** 状態に合わせたうえで、同じ束の後ろにあるカード交換を巻き戻す（交換アニメーションで二重に動かさないため） */
   function syncBefore(evs, i) {
     syncVM();
@@ -747,14 +728,12 @@
         case 'deal': {
           syncBefore(evs, i);
           vm = UI.vm;
-          logLine('第' + S.gameNo + 'ゲーム', 'game');
           renderAll();
           await animDeal();
           break;
         }
         case 'start': {
           vm.turn = ev.leader;
-          logLine(nameOf(ev.leader) + ' から始めます', 'sys');
           renderAll();
           break;
         }
@@ -763,19 +742,16 @@
           vm.turn = null;
           renderStatus();
           await animPlay(ev.seat, ev.play.cards);
-          logLine(nameOf(ev.seat) + '：' + E.describePlay(ev.play));
           break;
         }
         case 'pass': {
           SND.play('pass');
           bubble(ev.seat, 'パス');
-          logLine(nameOf(ev.seat) + '：パス');
           await sleep(260 * UI.speed);
           break;
         }
         case 'flow': {
           await animFlow();
-          logLine('— 場が流れた —', 'flow');
           vm.turn = ev.leader;
           renderStatus();
           renderSeats();
@@ -790,7 +766,6 @@
           renderStatus();
           const nm = REVO_NAMES[ev.kind] || '革命';
           await banner(ev.on ? nm : nm === '革命' ? '革命返し' : nm, 'revo', ev.on ? '強さが逆転！' : '強さが元に戻った', 1400);
-          logLine('★ ' + nameOf(ev.seat) + ' の' + (ev.on ? nm : '革命返し'), 'sys');
           renderHand();
           break;
         }
@@ -799,26 +774,22 @@
           SND.play('special');
           renderStatus();
           await banner(ev.by === 'J' ? 'Jバック' : '2バック', 'cool', ev.on ? '場が流れるまで強さが逆転' : '強さが元に戻った');
-          logLine('★ ' + (ev.by === 'J' ? 'Jバック' : '2バック'), 'sys');
           break;
         }
         case 'cut': {
           SND.play('cut');
           await banner(FLOW_NAMES[ev.kind], '', '場が流れる', 950);
-          logLine('★ ' + FLOW_NAMES[ev.kind], 'sys');
           break;
         }
         case 'sand': {
           SND.play('cut');
           sandstorm();
           await banner('砂嵐', '', '最強の役！場が流れる', 1200);
-          logLine('★ 砂嵐', 'sys');
           break;
         }
         case 'spade3': {
           SND.play('cut');
           await banner('スペ3返し', '', 'ジョーカーを破った！', 1100);
-          logLine('★ スペ3返し', 'sys');
           break;
         }
         case 'stop': {
@@ -826,14 +797,12 @@
           await animPlay(ev.seat, ev.play.cards, { stop: ev.kind });
           if (ev.kind === 'sand') sandstorm();
           await banner(STOP_NAMES[ev.kind], ev.kind === 'sand' ? '' : 'cool', nameOf(ev.seat) + 'が止めた！', 1150);
-          logLine('★ ' + nameOf(ev.seat) + ' の' + STOP_NAMES[ev.kind] + '（' + nameOf(ev.against) + 'の効果を止めた）', 'sys');
           break;
         }
         case 'skip': {
           SND.play('special');
           for (const s of ev.seats) bubble(s, 'スキップ', true);
           await banner('スキップ', 'cool', ev.seats.map(nameOf).join('・') + ' を飛ばす', 950);
-          logLine('★ スキップ：' + ev.seats.map(nameOf).join('・'), 'sys');
           break;
         }
         case 'give': {
@@ -843,7 +812,6 @@
             await animTransfer(ev.from, ev.to, ev.cards, involved);
             if (ev.to === UI.human) toast(ev.label + 'で受け取った：' + ev.cards.map(C.cardLabel).join(' '));
           }
-          logLine(nameOf(ev.from) + '：' + ev.label + ' ' + ev.cards.length + '枚' + (involved && ev.cards.length ? '（' + ev.cards.map(C.cardLabel).join(' ') + '）' : ''), 'sys');
           break;
         }
         case 'discard': {
@@ -851,12 +819,11 @@
             banner('10捨て', 'cool', nameOf(ev.seat) + 'が' + ev.cards.length + '枚捨てた', 1000);
             await animDiscard(ev.seat, ev.cards);
           }
-          logLine(nameOf(ev.seat) + '：10捨て ' + ev.cards.map(C.cardLabel).join(' '), 'sys');
           break;
         }
         case 'bomb': {
           if (!ev.ranks.length) {
-            logLine('★ 12ボンバー：' + nameOf(ev.seat) + (ev.none ? 'の手札に指名できる数字がない' : 'は指名しなかった'), 'sys');
+            bubble(ev.seat, ev.none ? '指名できる数字なし' : '指名しない');
             break;
           }
           SND.play('bomb');
@@ -866,8 +833,6 @@
           const jobs = [];
           for (const s of Object.keys(ev.removed)) jobs.push(animDiscard(+s, ev.removed[s]));
           await Promise.all(jobs);
-          logLine('★ 12ボンバー：' + ev.ranks.map((r) => C.rankLabel(r)).join('・') + '（' +
-            (Object.keys(ev.removed).map((s) => nameOf(+s) + ev.removed[s].length + '枚').join('、') || 'だれも持っていなかった') + '）', 'sys');
           break;
         }
         case 'pickup': {
@@ -883,7 +848,6 @@
             vm.hands[ev.seat] = vm.hands[ev.seat].concat(ev.cards);
             renderHand(); renderSeats();
           }
-          logLine(nameOf(ev.seat) + '：A拾い ' + (ev.cards.length ? ev.cards.map(C.cardLabel).join(' ') : 'なし'), 'sys');
           break;
         }
         case 'reverse': {
@@ -891,7 +855,6 @@
           SND.play('special');
           renderStatus();
           await banner('リバース', 'cool', '順番が逆回りに', 900);
-          logLine('★ 9リバース', 'sys');
           break;
         }
         case 'lock': {
@@ -902,14 +865,12 @@
           const sym = suits.map((s) => C.SUIT_SYM[s]).join('');
           const sub = ev.kind === 'number' ? '次も1つ上の数字だけ' : ev.kind === 'geki' ? sym + ' の1つ上の数字だけ' : ev.kind === 'partial' ? sym + ' を含めて出す' : sym + ' しか出せない';
           await banner(LOCK_NAMES[ev.kind], 'small', sub, 900);
-          logLine('★ ' + LOCK_NAMES[ev.kind] + '（' + sub + '）', 'sys');
           break;
         }
         case 'constraint': {
           vm.constraint = { rank: ev.rank, from: ev.from };
           renderStatus();
           bubble(S.lastSeat == null ? UI.human : S.lastSeat, '次は' + C.rankLabel(ev.rank) + 'だけ', true);
-          logLine('★ ' + C.rankLabel(ev.from) + '→' + C.rankLabel(ev.rank) + '：次は ' + C.rankLabel(ev.rank) + ' だけ', 'sys');
           break;
         }
         case 'finish': {
@@ -920,7 +881,6 @@
           SND.play(ev.seat === UI.human && ev.place === 1 ? 'fanfare' : 'finish');
           await banner(ev.seat === UI.human ? (ev.place === 1 ? '一番上がり！' : ev.place + '位で上がり') : '上がり',
             ev.seat === UI.human ? '' : 'small', nameOf(ev.seat) + '（' + ev.place + '位）', 1100);
-          logLine('◆ ' + nameOf(ev.seat) + ' 上がり（' + ev.place + '位）', 'sys');
           break;
         }
         case 'foul': {
@@ -930,7 +890,6 @@
           renderSeats(); renderMe();
           SND.play('foul');
           await banner('反則上がり', 'foul', nameOf(ev.seat) + 'は最下位', 1300);
-          logLine('◆ ' + nameOf(ev.seat) + ' 反則上がり（最下位）', 'sys');
           break;
         }
         case 'miyako': {
@@ -939,14 +898,12 @@
           renderSeats(); renderMe();
           SND.play('foul');
           await banner('都落ち', 'foul', nameOf(ev.seat) + 'は大貧民に', 1400);
-          logLine('◆ 都落ち：' + nameOf(ev.seat) + ' は大貧民', 'sys');
           break;
         }
         case 'gekokujo': {
           SND.play('revolution');
           shake();
           await banner('下剋上', 'revo', nameOf(ev.seat) + 'が一番上がり！身分が全部ひっくり返る', 1700);
-          logLine('◆ 下剋上！', 'sys');
           break;
         }
         case 'tenpen': {
@@ -955,39 +912,29 @@
           syncBefore(evs, i);
           vm = UI.vm;
           renderAll();
-          logLine('◆ 天変地異：' + nameOf(ev.seat) + ' ⇔ ' + nameOf(ev.with), 'sys');
           break;
         }
         case 'greatRevolution': {
           vm.hands[ev.seat] = [];
           SND.play('fanfare');
           await banner('大革命', 'revo', nameOf(ev.seat) + 'はそのまま上がり', 1500);
-          logLine('◆ 大革命：' + nameOf(ev.seat), 'sys');
           break;
         }
         case 'lucky': {
           vm.hands[ev.seat] = [];
           SND.play('fanfare');
           await banner('ラッキーセブン', '', nameOf(ev.seat) + 'はそのまま上がり', 1400);
-          logLine('◆ ラッキーセブン：' + nameOf(ev.seat), 'sys');
           break;
         }
         case 'exchange': {
           const faceUp = ev.from === UI.human || ev.to === UI.human;
           await animTransfer(ev.from, ev.to, ev.cards, faceUp);
-          const what = faceUp ? '（' + ev.cards.map(C.cardLabel).join(' ') + '）' : '';
-          logLine('交換：' + nameOf(ev.from) + ' → ' + nameOf(ev.to) + ' ' + ev.cards.length + '枚' + what);
           break;
         }
         case 'last': {
           vm.out[ev.seat] = true;
           vm.places[ev.seat] = S.finished.indexOf(ev.seat) + 1;
           renderSeats(); renderMe();
-          logLine('◆ ' + nameOf(ev.seat) + ' が最後', 'sys');
-          break;
-        }
-        case 'over': {
-          logLine('— 第' + S.gameNo + 'ゲーム終了 —', 'flow');
           break;
         }
         default:
@@ -1077,9 +1024,9 @@
   }
 
   Object.assign(UI, {
-    syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe, renderLog,
+    syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe,
     playEvents, banner, toast, bubble, flash, shake, setThinking, setSelectable, clearSelection, setDim, setHint,
-    showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable, logLine,
+    showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable,
     nameOf, titleOfSeat, TITLE_CLASS, esc, sleep, fmtPts, ptsClass, fly, rectAt, bubbleAt,
   });
   D.UI = UI;

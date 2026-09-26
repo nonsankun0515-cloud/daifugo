@@ -19,6 +19,7 @@
   store.settings = Object.assign({}, DEFAULT_SETTINGS, store.settings || {});
   store.rules = store.rules ? RU.migrate(store.rules) : Object.assign({}, RU.MINE);
   store.rating = Object.assign(newRating(), store.rating || {});
+  delete store.log; // 以前の「履歴」（出したカードの記録）。カウンティングできないように履歴はなくした
   // 七並べ・スピード
   store.sevens = Object.assign({}, store.sevens);
   store.sevens.settings = Object.assign({ players: 4, level: 'normal', games: 10 }, store.sevens.settings);
@@ -296,8 +297,6 @@
     book.game = game || book.game;
     if (tab) book.tab = tab;
     book.src = src || '';
-    const lg = $('log');
-    if (lg) lg.hidden = true;
     if (D.OnlineClient) D.OnlineClient.closeChat();
     $('book').hidden = false;
     renderBook();

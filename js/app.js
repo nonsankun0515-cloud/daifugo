@@ -162,7 +162,6 @@
     UI.S = S;
     UI.human = 0;
     UI.seatInfo = null;
-    UI.logLines = [];
     UI.resetTable();
     fastForward = false;
     showScreen('game');
@@ -199,7 +198,6 @@
     }
     UI.S = S;
     UI.human = 0;
-    UI.logLines = Array.isArray(store.log) ? store.log.slice(-200) : [];
     UI.resetTable();
     fastForward = false;
     showScreen('game');
@@ -213,7 +211,6 @@
     if (!S || onlineRoom()) return; // オンライン対戦の状態はサーバーが持つ
     try {
       store.match = E.serialize(S);
-      store.log = UI.logLines.slice(-120);
       save();
     } catch (e) { /* 保存できなくても続行 */ }
     saveHot();
@@ -276,18 +273,12 @@
         try { evs = E.apply(S, fallbackAction(q)); } catch (e2) { console.error(e2); return; }
       }
       if (S.matchOver) applyRated(); // 演出の途中で閉じてもレートが反映されるように先に
-      if (fastForward) { UI.syncVM(); UI.renderAll(); for (const ev of evs) if (ev.t !== 'deal') logEventQuick(ev); }
+      if (fastForward) { UI.syncVM(); UI.renderAll(); }
       else await UI.playEvents(evs);
       persist();
       if (token !== loopToken) return;
       maybeOfferFastForward();
     }
-  }
-
-  function logEventQuick(ev) {
-    if (ev.t === 'finish') UI.logLine('◆ ' + UI.nameOf(ev.seat) + ' 上がり（' + ev.place + '位）', 'sys');
-    else if (ev.t === 'foul') UI.logLine('◆ ' + UI.nameOf(ev.seat) + ' 反則上がり', 'sys');
-    else if (ev.t === 'play') UI.logLine(UI.nameOf(ev.seat) + '：' + E.describePlay(ev.play));
   }
 
   function fallbackAction(q) {
@@ -591,7 +582,7 @@
   /** 途中のレート戦を棄権する（残りのゲームは最下位として計算） */
   function abandonRated() {
     const r = CM.abandonRatedLocal(store.match);
-    if (r) { store.match = null; store.log = []; save(); }
+    if (r) { store.match = null; save(); }
     return r;
   }
   const abandonNote = CM.abandonNote;
@@ -600,7 +591,7 @@
   function askAbandon(onAbandoned) {
     CM.askAbandon(savedMatch(), {
       onResume: resumeMatch,
-      onAbandoned: () => { store.match = null; store.log = []; save(); renderHome(); onAbandoned(); },
+      onAbandoned: () => { store.match = null; save(); renderHome(); onAbandoned(); },
     });
   }
 
@@ -763,7 +754,6 @@
       if (o.resultsOpen && S.phase !== 'over') { UI.closeDialog(); o.resultsOpen = false; }
       if (first) {
         o.gameShown = true;
-        UI.logLines = [];
         showScreen('game');
         UI.resetTable();
         UI.syncVM();
@@ -884,7 +874,7 @@
     const hot = globalThis.claude && globalThis.claude.hot;
     if (hotRegistered || !hot || !hot.snapshot) return;
     hotRegistered = true;
-    try { hot.snapshot(() => ({ match: S ? E.serialize(S) : null, screen: $('scr-game').hidden ? 'title' : 'game', log: UI.logLines.slice(-120) })); } catch (e) { /* 無視 */ }
+    try { hot.snapshot(() => ({ match: S ? E.serialize(S) : null, screen: $('scr-game').hidden ? 'title' : 'game' })); } catch (e) { /* 無視 */ }
   }
 
   // ─────────────────────────────────────────────
@@ -892,10 +882,8 @@
   // ─────────────────────────────────────────────
   function init() {
     $('g-menu').innerHTML = A.icon('menu');
-    $('g-log').innerHTML = A.icon('log');
     $('g-book').innerHTML = A.icon('book');
     $('rules-back').innerHTML = A.icon('back');
-    $('log-close').innerHTML = A.icon('close');
     setActionButtons({});
 
     $('btn-rated').addEventListener('click', () => { SND.unlock(); openRated(); });
@@ -908,8 +896,6 @@
     $('rules-back').addEventListener('click', () => showScreen('title'));
     $('rules-start').addEventListener('click', () => { SND.unlock(); newMatch(); });
     $('g-menu').addEventListener('click', openMenu);
-    $('g-log').addEventListener('click', () => { const lg = $('log'); lg.hidden = !lg.hidden; if (!lg.hidden) { OC.closeChat(); CM.closeBook(); UI.renderLog(); } });
-    $('log-close').addEventListener('click', () => { $('log').hidden = true; });
 
     document.addEventListener('keydown', (e) => {
       if ($('scr-game').hidden || !$('overlay').hidden) return;
@@ -929,7 +915,6 @@
   function restore(data) {
     if (!data || !data.match) return false;
     store.match = data.match;
-    if (Array.isArray(data.log)) store.log = data.log;
     if (data.screen === 'game') { resumeMatch(); return true; }
     return false;
   }

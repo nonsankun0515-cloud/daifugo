@@ -1387,26 +1387,6 @@ a.btn { text-decoration: none; }
 }
 @keyframes bookIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ───────── 履歴 ───────── */
-.log {
-  position: absolute;
-  right: 0; top: 0; bottom: 0;
-  width: min(340px, 86vw);
-  z-index: 30;
-  background: linear-gradient(180deg, rgba(24, 19, 15, 0.97), rgba(12, 9, 7, 0.97));
-  border-left: 1px solid rgba(217, 178, 90, 0.4);
-  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
-}
-.log header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--lacquer-line); }
-.log header h3 { margin: 0; font-family: var(--font-display); font-weight: 800; letter-spacing: 0.1em; color: var(--gold-light); font-size: 17px; }
-.log ol { list-style: none; margin: 0; padding: 8px 14px 18px; overflow-y: auto; flex: 1; font-size: 13px; line-height: 1.5; }
-.log li { padding: 3px 0; border-bottom: 1px dashed rgba(217, 178, 90, 0.1); }
-.log li.sys { color: var(--gold-light); font-weight: 700; }
-.log li.flow { color: var(--muted); text-align: center; font-size: 12px; }
-.log li.game { color: var(--gold-light); font-family: var(--font-display); font-weight: 800; letter-spacing: 0.08em; margin-top: 8px; }
-
 /* ───────── 広い画面：楕円のテーブルと太いひじ掛け ───────── */
 @media (min-width: 900px) and (min-height: 560px) {
   :root {

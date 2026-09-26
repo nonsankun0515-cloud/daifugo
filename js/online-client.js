@@ -235,7 +235,6 @@
   function openChat() {
     const o = OC.cur;
     if (!o) return;
-    document.querySelectorAll('.log').forEach((l) => { l.hidden = true; });
     CM.closeBook();
     $('chat').hidden = false;
     o.unread = 0;
