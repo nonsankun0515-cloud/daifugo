@@ -1,0 +1,12 @@
+BGM（Cards Table のアプリで使っている曲）
+
+  audio/bgm-lobby.mp3    "Lobby Time"    Kevin MacLeod (incompetech.com)
+  audio/bgm-daifugo.mp3  "Cool Vibes"    Kevin MacLeod (incompetech.com)
+  audio/bgm-sevens.mp3   "Bossa Antigua" Kevin MacLeod (incompetech.com)
+  audio/bgm-speed.mp3    "Hep Cats"      Kevin MacLeod (incompetech.com)
+
+Licensed under Creative Commons: By Attribution 4.0 License
+https://creativecommons.org/licenses/by/4.0/
+
+変更点：アプリで軽く読み込めるように、元の mp3（256〜320kbps・44.1kHz）を 96kbps・32kHz の mp3 に変換した（曲の内容は変えていない）。
+アプリの中では「マイページ」の下にクレジットを表示している。

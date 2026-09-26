@@ -11,7 +11,7 @@
   // 保存（この端末のブラウザだけ）。キーは大富豪だけだった頃のまま
   // ─────────────────────────────────────────────
   const STORE_KEY = 'daifugo.v1';
-  const DEFAULT_SETTINGS = { players: 4, level: 'normal', games: 10, speed: 'normal', back: 'red', sound: true, autoPass: true, showPlayable: true, name: 'あなた' };
+  const DEFAULT_SETTINGS = { players: 4, level: 'normal', games: 10, speed: 'normal', back: 'red', sound: true, bgm: true, bgmVol: 'low', autoPass: true, showPlayable: true, name: 'あなた' };
   const newRating = () => ({ r: RT.START, matches: 0, best: RT.START, hist: [] });
   let store = {};
   try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { store = {}; }
@@ -52,13 +52,17 @@
     UI.backURI = A.backDataURI(settings.back);
     UI.showPlayable = settings.showPlayable;
     SND.setEnabled(settings.sound);
+    if (D.BGM) D.BGM.sync();
+    const any = settings.sound || settings.bgm;
     document.querySelectorAll('[data-sound-btn]').forEach((b) => {
-      b.innerHTML = A.icon(settings.sound ? 'soundOn' : 'soundOff');
-      b.setAttribute('aria-label', settings.sound ? '効果音をオフ' : '効果音をオン');
+      b.innerHTML = A.icon(any ? 'soundOn' : 'soundOff');
+      b.setAttribute('aria-label', any ? '音をすべて消す' : '音を出す');
     });
   }
+  /** 対局中のスピーカーのボタン：効果音と BGM をまとめて消す／出す（別々の設定はマイページ） */
   function toggleSound() {
-    settings.sound = !settings.sound;
+    const any = settings.sound || settings.bgm;
+    settings.sound = settings.bgm = !any;
     save();
     applySettings();
     if (settings.sound) SND.play('select');

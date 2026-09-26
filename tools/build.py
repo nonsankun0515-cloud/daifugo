@@ -87,6 +87,8 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   const put = (res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res; };
+  // BGM（mp3）は少しずつ読み込む（Range）ので、保存せずにそのままネットから
+  if (url.origin === location.origin && url.pathname.endsWith('.mp3')) return;
   if (url.origin === location.origin) {
     // 自分のファイル：つながっていれば最新、つながらなければ保存済み
     e.respondWith(fetch(req).then(put).catch(() => caches.match(req).then((r) => r || caches.match('./index.html'))));
@@ -119,11 +121,13 @@ def main():
     write("docs/manifest.webmanifest", json.dumps(MANIFEST, ensure_ascii=False, indent=2) + "\n")
     write("docs/sw.js", SW % version)
     write("docs/.nojekyll", "")
-    icons_src = os.path.join(ROOT, "icons")
-    icons_dst = os.path.join(ROOT, "docs", "icons")
-    if os.path.isdir(icons_src):
-        shutil.rmtree(icons_dst, ignore_errors=True)
-        shutil.copytree(icons_src, icons_dst)
+    # アイコンと BGM（audio/。曲のクレジットは audio/CREDITS.txt）をアプリ版にもコピー
+    for folder in ("icons", "audio"):
+        src = os.path.join(ROOT, folder)
+        dst = os.path.join(ROOT, "docs", folder)
+        if os.path.isdir(src):
+            shutil.rmtree(dst, ignore_errors=True)
+            shutil.copytree(src, dst)
     # 以前の出力先（dist/pwa）は使わない
     shutil.rmtree(os.path.join(ROOT, "dist", "pwa"), ignore_errors=True)
 

@@ -35,3 +35,16 @@ py tools/build.py
 ```
 
 を実行して `docs/` を更新し、GitHub に push すると公開ページに反映されます。
+
+## BGM のクレジット
+
+- "Lobby Time"（ホーム・待合室）
+- "Cool Vibes"（大富豪）
+- "Bossa Antigua"（七並べ）
+- "Hep Cats"（スピード）
+
+Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0 License
+https://creativecommons.org/licenses/by/4.0/
+
+アプリ用に音質を変換しています（96kbps・32kHz の mp3。曲の内容は変えていません）。ファイルは `audio/`、詳しくは `audio/CREDITS.txt`。

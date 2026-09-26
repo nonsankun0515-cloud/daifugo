@@ -9,6 +9,7 @@
     document.body.insertAdjacentHTML('afterbegin', A.SHARED_DEFS);
     if (D.Textures) D.Textures.apply();
     CM.init();
+    if (D.BGM) D.BGM.init();
     OC.init();
     SH.init();
     for (const g of ['daifugo', 'sevens', 'speed']) if (D.Games[g]) D.Games[g].init();

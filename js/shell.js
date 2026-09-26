@@ -121,6 +121,8 @@
     }
     st.panel.appendChild(CM.row('カードの裏', '', sw));
     st.panel.appendChild(CM.row('効果音', '', CM.toggle('opt-sound', s.sound, (v) => set('sound', v), false, '効果音')));
+    st.panel.appendChild(CM.row('BGM', 'ゲームごとに曲が変わります', CM.toggle('opt-bgm', s.bgm, (v) => set('bgm', v), false, 'BGM')));
+    st.panel.appendChild(CM.row('BGMの音量', '', CM.seg([{ v: 'low', label: '小' }, { v: 'mid', label: '中' }, { v: 'high', label: '大' }], s.bgmVol, (v) => set('bgmVol', v), !s.bgm)));
     st.panel.appendChild(CM.row('出せないときは自動でパス', '大富豪・七並べ', CM.toggle('opt-autopass', s.autoPass, (v) => set('autoPass', v), false, '自動パス')));
     st.panel.appendChild(CM.row('出せるカードを明るく表示', '', CM.toggle('opt-playable', s.showPlayable, (v) => set('showPlayable', v), false, '出せるカードを表示')));
     wrap.appendChild(st.s);
@@ -130,7 +132,12 @@
 
     const about = document.createElement('section');
     about.className = 'me-about';
-    about.innerHTML = '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
+    // BGM のクレジット（CC BY 4.0 の決まり：曲名・作曲者・ライセンス・変更したこと）
+    const T = D.BGM.TRACKS;
+    about.innerHTML = '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>' +
+      '<p class="credit">BGM：' + [T.lobby, T.daifugo, T.sevens, T.speed].map((t) => '“' + esc(t.title) + '”').join('、') +
+      '<br>Kevin MacLeod (incompetech.com)<br>Licensed under Creative Commons: By Attribution 4.0<br>' +
+      '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">creativecommons.org/licenses/by/4.0</a>（アプリ用に音質を変換）</p>';
     wrap.appendChild(about);
   }
 
