@@ -598,6 +598,17 @@
     setTimeout(() => b.remove(), (kind === 'chat' ? 3500 : 1400) * UI.speed + 100);
   }
 
+  /** 任意の要素の上に吹き出しを出す（七並べ・スピードの席でも使う） */
+  function bubbleAt(host, text, alert, kind) {
+    if (!host) return;
+    if (kind === 'chat') { const old = host.querySelector(':scope > .bubble.talk'); if (old) old.remove(); }
+    const b = document.createElement('div');
+    b.className = 'bubble' + (alert ? ' alert' : '') + (kind === 'chat' ? ' talk' : '');
+    b.textContent = text;
+    host.appendChild(b);
+    setTimeout(() => b.remove(), (kind === 'chat' ? 3500 : 1400) * UI.speed + 100);
+  }
+
   let toastTimer = 0;
   function toast(text, ms) {
     const t = $('toast');
@@ -1069,7 +1080,7 @@
     syncVM, renderAll, renderHand, renderSeats, renderPile, renderStatus, renderMe, renderLog,
     playEvents, banner, toast, bubble, flash, shake, setThinking, setSelectable, clearSelection, setDim, setHint,
     showPrompt, hidePrompt, openDialog, closeDialog, miniCards, makeCardEl, makeBackEl, resetTable, logLine,
-    nameOf, titleOfSeat, TITLE_CLASS, esc, sleep, fmtPts, ptsClass,
+    nameOf, titleOfSeat, TITLE_CLASS, esc, sleep, fmtPts, ptsClass, fly, rectAt, bubbleAt,
   });
   D.UI = UI;
 })();

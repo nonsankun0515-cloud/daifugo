@@ -1,16 +1,12 @@
-/* 大富豪 — オンライン対戦の部屋（サーバーの Durable Object とテストで共通） */
+/* オンライン対戦の部屋（サーバーの Durable Object とテストで共通）
+ * 部屋の仕組み（入退室・ホスト・設定・チャット・レート）は共通で、ゲームごとの違いは ADAPTERS にまとめる。 */
 (function () {
   'use strict';
   const D = (globalThis.DFG = globalThis.DFG || {});
-  const E = D.Engine, RU = D.Rules, AI = D.AI, RT = D.Rating;
+  const RT = D.Rating;
 
   const ROBOT_NAMES = ['ロボ太', 'メカ子', 'ギア丸', 'ボルト', 'ネジ美'];
-  const MAX_PLAYERS = 6;
-  const MIN_PLAYERS = 3;
-  const AWAY_GRACE = 15000; // 切断した人の番をAIが代わるまで
-  // 演出が大きいイベント（AIの次の手までの待ち時間を延ばす）
-  const BIG = new Set(['revolution', 'jback', 'cut', 'sand', 'spade3', 'stop', 'skip', 'give', 'discard', 'bomb', 'pickup',
-    'reverse', 'lock', 'finish', 'foul', 'miyako', 'gekokujo', 'tenpen', 'greatRevolution', 'lucky', 'deal', 'exchange']);
+  const AWAY_GRACE = 15000; // 切断した人の番をAIが代わるまで（順番のあるゲーム）
 
   function cleanName(name) {
     return String(name || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 8);
@@ -29,26 +25,147 @@
     return m.pid;
   }
 
+  // ─────────────────────────────────────────────
+  // ゲームごとの違い
+  // ─────────────────────────────────────────────
+  /** 順番に1手ずつ進むゲーム（大富豪・七並べ）の共通部分 */
+  function turnAdapter(spec) {
+    return Object.assign({
+      realtime: false,
+      create(o) { return spec.engine().createMatch(o); },
+      start(S) { const E = spec.engine(); S.events = []; E.startGame(S); const ev = S.events; S.events = []; return ev; },
+      act(S, seat, action) {
+        const E = spec.engine();
+        const q = E.getRequest(S);
+        if (!q || q.seat !== seat) throw new Error('あなたの番ではありません');
+        if (!action || typeof action !== 'object') throw new Error('操作が不正です');
+        return E.apply(S, Object.assign({}, action, { seat }));
+      },
+      /** いま誰かがAIとして動く必要があるか。あるなら何ms後か（なければ null） */
+      delay(room, now) {
+        const S = room.S;
+        const q = spec.engine().getRequest(S);
+        if (!q) return null;
+        const seat = room.seats[q.seat];
+        const big = room.lastEvents.filter((e) => spec.big.has(e.t)).length;
+        const base = Math.min(4500, spec.baseDelay + big * 750);
+        if (seat.type === 'ai') return base;
+        const m = room.member(seat.cid);
+        if (!m) return base;
+        if (!m.connected) return Math.max(base, m.awaySince + AWAY_GRACE - now);
+        return null;
+      },
+      /** AI（または切断中の人の代わり）が1手進める */
+      tick(room, now) {
+        const S = room.S;
+        const E = spec.engine();
+        if (this.delay(room, now) === null) return null;
+        const q = E.getRequest(S);
+        const seat = room.seats[q.seat];
+        if (seat.type !== 'ai') {
+          const m = room.member(seat.cid);
+          if (m && (m.connected || now - m.awaySince < AWAY_GRACE)) return null;
+        }
+        const level = seat.type === 'ai' ? seat.level : 'normal';
+        const a = spec.ai().decideSync(S, q, level === 'easy' ? 'easy' : 'normal');
+        return E.apply(S, a);
+      },
+      view(S, seat, events) {
+        const E = spec.engine();
+        const q = E.getRequest(S);
+        return {
+          state: spec.sanitize(S, seat),
+          events: events.map((ev) => spec.filterEvent(ev, seat)),
+          request: q && q.seat === seat && seat >= 0 ? spec.sanitizeRequest(q) : null,
+        };
+      },
+    }, spec);
+  }
+
+  const BIG_DAIFUGO = new Set(['revolution', 'jback', 'cut', 'sand', 'spade3', 'stop', 'skip', 'give', 'discard', 'bomb', 'pickup',
+    'reverse', 'lock', 'finish', 'foul', 'miyako', 'gekokujo', 'tenpen', 'greatRevolution', 'lucky', 'deal', 'exchange']);
+
+  const ADAPTERS = {
+    daifugo: turnAdapter({
+      id: 'daifugo', minPlayers: 3, maxPlayers: 6, gamesOptions: [0, 5, 10], aiLevels: ['easy', 'normal'], baseDelay: 1000, big: BIG_DAIFUGO,
+      defaults: { players: 4, aiLevel: 'normal', mode: 'free', games: 10 },
+      engine: () => D.Engine, ai: () => D.AI, normalizeRules: (r) => D.Rules.normalize(r || D.Rules.MINE),
+      sanitize: sanitizeDaifugo,
+      filterEvent(ev, seat) {
+        if ((ev.t === 'give' || ev.t === 'exchange') && ev.from !== seat && ev.to !== seat) return Object.assign({}, ev, { cards: ev.cards.map(() => '?') });
+        return ev;
+      },
+      sanitizeRequest(q) { const r = JSON.parse(JSON.stringify(q)); delete r.rest; return r; },
+    }),
+    sevens: turnAdapter({
+      id: 'sevens', minPlayers: 3, maxPlayers: 6, gamesOptions: [0, 5, 10], aiLevels: ['easy', 'normal'], baseDelay: 900,
+      big: new Set(['deal', 'joker', 'jokerBack', 'elim', 'finish', 'sevens']),
+      defaults: { players: 4, aiLevel: 'normal', mode: 'free', games: 10 },
+      engine: () => D.Sevens, ai: () => D.SevensAI, normalizeRules: (r) => D.SevensRules.normalize(r),
+      sanitize(S, seat) {
+        const T = D.Sevens.serialize(S);
+        T.players.forEach((p, i) => { if (i !== seat) p.hand = p.hand.map(() => '?'); });
+        if (T.forced && T.forced.seat !== seat) T.forced = null; // ジョーカーの場所のカードをだれが持っているかは伏せる
+        return T;
+      },
+      filterEvent: (ev) => ev,
+      sanitizeRequest: (q) => Object.assign({}, q),
+    }),
+    speed: {
+      id: 'speed', realtime: true, minPlayers: 2, maxPlayers: 2, gamesOptions: [1, 3, 5], aiLevels: ['easy', 'normal', 'hard'],
+      defaults: { players: 2, aiLevel: 'normal', mode: 'free', games: 3 },
+      normalizeRules: (r) => D.SpeedRules.normalize(r),
+      create(o) { return D.Speed.createMatch(o); },
+      start(S, room, now) { const ev = D.Speed.startGame(S); D.SpeedHost.schedule(S, now || Date.now(), levelOfSeats(room)); return ev; },
+      act(S, seat, action, room, now) {
+        if (!action || action.type !== 'play') throw new Error('操作が不正です');
+        const ev = D.Speed.play(S, seat, action.slot, action.pile);
+        D.SpeedHost.schedule(S, now, levelOfSeats(room));
+        return ev;
+      },
+      delay(room, now) { return D.SpeedHost.nextDelay(room.S, now); },
+      tick(room, now) {
+        const r = D.SpeedHost.tick(room.S, now, levelOfSeats(room));
+        return r ? r.events : null;
+      },
+      view(S, seat, events) { return { state: D.Speed.publicView(S), events, request: null }; },
+    },
+  };
+  // スピードは人の席にAIが代わりに入らない（切断中はそのまま）
+  function levelOfSeats(room) {
+    return (seat) => { const s = room && room.seats[seat]; return s && s.type === 'ai' ? s.level : null; };
+  }
+
+  function engineOf(game) {
+    return game === 'sevens' ? D.Sevens : game === 'speed' ? D.Speed : D.Engine;
+  }
+
+  // ─────────────────────────────────────────────
+  // 部屋
+  // ─────────────────────────────────────────────
   class RoomCore {
     constructor(code) {
       this.code = code;
+      this.game = null; // daifugo | sevens | speed（最初に入った人が決める）
       this.members = []; // 部屋にいる人（入った順。先頭がホスト）: { cid, name, connected, awaySince }
-      this.settings = { players: 4, aiLevel: 'normal', mode: 'free', games: 10 }; // mode: free | rated
+      this.settings = Object.assign({}, ADAPTERS.daifugo.defaults); // mode: free | rated
       this.phase = 'lobby'; // lobby | playing
-      this.seats = []; // 対局中の席: { type: 'human'|'ai', cid, name, level, robot }
+      this.seats = []; // 対局中の席: { type: 'human'|'ai', cid, name, level, robot, ratedCid }
       this.S = null;
       this.lastEvents = [];
       this.rev = 0;
       this.updatedAt = 0;
       this.chatLog = [];
       this.chatSeq = 0;
-      this.ratingOut = []; // サーバーが保存するレート変動 { cid, delta }
+      this.ratingOut = []; // サーバーが保存するレート変動 { cid, game, delta }
     }
+
+    get adapter() { return ADAPTERS[this.game || 'daifugo']; }
 
     toJSON() {
       return {
-        code: this.code, members: this.members, settings: this.settings, phase: this.phase, seats: this.seats,
-        S: this.S ? E.serialize(this.S) : null, lastEvents: this.lastEvents, rev: this.rev, updatedAt: this.updatedAt,
+        code: this.code, game: this.game, members: this.members, settings: this.settings, phase: this.phase, seats: this.seats,
+        S: this.S ? engineOf(this.game).serialize(this.S) : null, lastEvents: this.lastEvents, rev: this.rev, updatedAt: this.updatedAt,
         chatLog: this.chatLog, chatSeq: this.chatSeq, ratingOut: this.ratingOut,
       };
     }
@@ -56,10 +173,11 @@
     static fromJSON(o) {
       const r = new RoomCore(o.code);
       Object.assign(r, o);
-      r.S = o.S ? E.deserialize(o.S) : null;
+      if (!r.game) r.game = 'daifugo'; // ゲームを選べるようになる前の部屋
+      r.S = o.S ? engineOf(r.game).deserialize(o.S) : null;
       if (!Array.isArray(r.chatLog)) r.chatLog = [];
       if (!Array.isArray(r.ratingOut)) r.ratingOut = [];
-      r.settings = Object.assign({ players: 4, aiLevel: 'normal', mode: 'free', games: 10 }, r.settings);
+      r.settings = Object.assign({}, r.adapter.defaults, r.settings);
       if (!r.chatSeq) r.chatSeq = r.chatLog.length ? r.chatLog[r.chatLog.length - 1].id : 0;
       return r;
     }
@@ -85,8 +203,8 @@
     isHost(cid) { return this.members.length > 0 && this.members[0].cid === cid; }
     seatOf(cid) { return this.seats.findIndex((s) => s.type === 'human' && s.cid === cid); }
 
-    /** 入室（同じ人の再接続もここ）。rec はサーバーに保存されているその人のレート { r, n } */
-    join(cid, name, now, rec) {
+    /** 入室（同じ人の再接続もここ）。rec はその人のレート { r, n }、game は新しい部屋のゲーム */
+    join(cid, name, now, rec, game) {
       name = cleanName(name);
       const m = this.member(cid);
       if (m) {
@@ -98,6 +216,12 @@
         this.touch(now);
         return { ok: true };
       }
+      if (!this.members.length && this.phase === 'lobby') {
+        // 空の部屋：最初に入った人のゲームにする
+        const g = ADAPTERS[game] ? game : 'daifugo';
+        if (g !== this.game) { this.game = g; this.settings = Object.assign({}, this.adapter.defaults); }
+      }
+      const A = this.adapter;
       if (this.phase === 'playing') {
         // 対局中は、AIの席を引き継いで途中参加
         const i = this.seats.findIndex((s) => s.type === 'ai');
@@ -113,8 +237,10 @@
         this.touch(now);
         return { ok: true };
       }
-      if (this.members.length >= MAX_PLAYERS) return { ok: false, error: '満員です（6人まで）' };
-      if (this.settings.mode === 'rated' && this.members.length >= RT.PLAYERS) return { ok: false, error: '満員です（レート戦は' + RT.PLAYERS + '人まで）' };
+      if (this.members.length >= A.maxPlayers) return { ok: false, error: '満員です（' + A.maxPlayers + '人まで）' };
+      if (this.settings.mode === 'rated' && this.members.length >= RT.cfg(this.game).players) {
+        return { ok: false, error: '満員です（レート戦は' + RT.cfg(this.game).players + '人まで）' };
+      }
       const nm = { cid, name: name || 'プレイヤー' + (this.members.length + 1), connected: true, awaySince: 0 };
       if (rec) setRating(nm, rec);
       pidOf(nm);
@@ -139,79 +265,80 @@
       const gone = this.members.splice(i, 1)[0];
       if (this.phase === 'playing') {
         const s = this.seatOf(cid);
-        if (s >= 0) { this.abandon(s, gone); this.toAI(s); }
+        if (s >= 0) { this.abandon(s, gone); this.toAI(s, now); }
         if (!this.members.length) { this.phase = 'lobby'; this.seats = []; this.S = null; this.lastEvents = []; }
       }
       this.touch(now);
     }
 
-    toAI(s) {
+    toAI(s, now) {
       const used = new Set(this.seats.filter((x) => x.type === 'ai').map((x) => x.robot));
       let robot = 0;
       while (used.has(robot) && robot < ROBOT_NAMES.length - 1) robot++;
       this.seats[s] = { type: 'ai', cid: null, name: ROBOT_NAMES[robot], level: this.settings.aiLevel, robot };
       this.S.players[s].name = ROBOT_NAMES[robot];
       this.S.players[s].human = false;
+      if (this.adapter.realtime && this.S.phase !== 'over') D.SpeedHost.schedule(this.S, now || Date.now(), levelOfSeats(this));
     }
 
     configure(cid, cfg, now) {
       if (!this.isHost(cid)) return { ok: false, error: '設定を変えられるのはホストだけです' };
       if (this.phase !== 'lobby') return { ok: false, error: '対局中は変えられません' };
+      const A = this.adapter, rc = RT.cfg(this.game);
       if (cfg.mode != null) {
         if (cfg.mode !== 'free' && cfg.mode !== 'rated') return { ok: false, error: '遊び方が不正です' };
-        if (cfg.mode === 'rated' && this.members.length > RT.PLAYERS) return { ok: false, error: 'レート戦は' + RT.PLAYERS + '人までです' };
+        if (cfg.mode === 'rated' && this.members.length > rc.players) return { ok: false, error: 'レート戦は' + rc.players + '人までです' };
         this.settings.mode = cfg.mode;
-        if (cfg.mode === 'rated') this.settings.players = RT.PLAYERS;
+        if (cfg.mode === 'rated') { this.settings.players = rc.players; this.settings.games = rc.games; }
       }
       if (cfg.games != null) {
         const g = Number(cfg.games);
-        if (![0, 5, 10].includes(g)) return { ok: false, error: 'ゲーム数が不正です' };
+        if (!A.gamesOptions.includes(g)) return { ok: false, error: 'ゲーム数が不正です' };
+        if (this.settings.mode === 'rated' && g !== rc.games) return { ok: false, error: 'レート戦のゲーム数は変えられません' };
         this.settings.games = g;
       }
       if (cfg.players != null) {
         const n = Math.round(Number(cfg.players));
-        if (!(n >= MIN_PLAYERS && n <= MAX_PLAYERS)) return { ok: false, error: '人数は3〜6人です' };
+        if (!(n >= A.minPlayers && n <= A.maxPlayers)) return { ok: false, error: '人数は' + A.minPlayers + '〜' + A.maxPlayers + '人です' };
         if (n < this.members.length) return { ok: false, error: '部屋にいる人数より少なくはできません' };
-        if (this.settings.mode === 'rated' && n !== RT.PLAYERS) return { ok: false, error: 'レート戦は' + RT.PLAYERS + '人で固定です' };
+        if (this.settings.mode === 'rated' && n !== rc.players) return { ok: false, error: 'レート戦は' + rc.players + '人で固定です' };
         this.settings.players = n;
       }
       if (cfg.aiLevel != null) {
-        if (!['easy', 'normal'].includes(cfg.aiLevel)) return { ok: false, error: 'AIの強さが不正です' };
+        if (!A.aiLevels.includes(cfg.aiLevel)) return { ok: false, error: 'AIの強さが不正です' };
         this.settings.aiLevel = cfg.aiLevel;
       }
       this.touch(now);
       return { ok: true };
     }
 
-    /** 対局開始（ホストのルールで） */
+    /** 対局開始（ホストのルールで。レート戦は決まったルール） */
     start(cid, rules, now) {
       if (!this.isHost(cid)) return { ok: false, error: '始められるのはホストだけです' };
       if (this.phase !== 'lobby') return { ok: false, error: 'もう始まっています' };
+      const A = this.adapter, rc = RT.cfg(this.game);
       const rated = this.settings.mode === 'rated';
-      if (rated && this.members.length > RT.PLAYERS) return { ok: false, error: 'レート戦は' + RT.PLAYERS + '人までです' };
-      const n = rated ? RT.PLAYERS : Math.max(this.settings.players, this.members.length, MIN_PLAYERS);
+      if (rated && this.members.length > rc.players) return { ok: false, error: 'レート戦は' + rc.players + '人までです' };
+      const n = rated ? rc.players : Math.max(this.settings.players, this.members.length, A.minPlayers);
       // レート戦は、最初から座っている人だけがレートの対象（ratedCid）
-      const seats = this.members.map((m) => ({ type: 'human', cid: m.cid, name: m.name, level: 'normal', robot: -1, ratedCid: rated ? m.cid : null }));
+      const seats = this.members.slice(0, n).map((m) => ({ type: 'human', cid: m.cid, name: m.name, level: 'normal', robot: -1, ratedCid: rated ? m.cid : null }));
       for (let r = 0; seats.length < n; r++) {
         seats.push({ type: 'ai', cid: null, name: ROBOT_NAMES[r], level: this.settings.aiLevel, robot: r });
       }
       this.seats = seats;
       let info = null;
       if (rated) {
-        const base = seats.map((s) => (s.type === 'human' ? ratingOf(this.member(s.cid)) : RT.AI[s.level] || RT.AI.normal));
+        const base = seats.map((s) => (s.type === 'human' ? ratingOf(this.member(s.cid)) : rc.ai[s.level] || rc.ai.normal));
         const matches = seats.map((s) => (s.type === 'human' ? (this.member(s.cid).matches || 0) : 0));
         info = { online: true, base, matches, results: seats.map(() => null), finished: false };
       }
-      this.S = E.createMatch({
-        rules: rated ? RT.rules() : RU.normalize(rules || RU.MINE),
+      this.S = A.create({
+        rules: rated ? rc.rules() : A.normalizeRules(rules),
         players: seats.map((s) => ({ name: s.name, human: s.type === 'human', level: s.level })),
-        games: rated ? RT.GAMES : this.settings.games,
+        games: rated ? rc.games : this.settings.games,
         rated: info,
       });
-      this.S.events = [];
-      E.startGame(this.S);
-      this.lastEvents = this.S.events;
-      this.S.events = [];
+      this.lastEvents = A.start(this.S, this, now);
       this.phase = 'playing';
       this.touch(now);
       return { ok: true };
@@ -222,11 +349,7 @@
       if (this.phase !== 'playing' || !this.S) return { ok: false, error: '対局中ではありません' };
       const seat = this.seatOf(cid);
       if (seat < 0) return { ok: false, error: '席がありません' };
-      const q = E.getRequest(this.S);
-      if (!q || q.seat !== seat) return { ok: false, error: 'あなたの番ではありません' };
-      if (!action || typeof action !== 'object') return { ok: false, error: '操作が不正です' };
-      const a = Object.assign({}, action, { seat });
-      this.lastEvents = E.apply(this.S, a);
+      this.lastEvents = this.adapter.act(this.S, seat, action, this, now);
       this.finishRated();
       this.touch(now);
       return { ok: true };
@@ -237,46 +360,30 @@
       if (this.phase !== 'playing' || !this.S || this.S.phase !== 'over') return { ok: false, error: 'まだゲーム中です' };
       if (!this.member(cid)) return { ok: false, error: '部屋にいません' };
       if (this.S.matchOver) return { ok: false, error: 'この試合は終わりました' };
-      this.S.events = [];
-      E.startGame(this.S);
-      this.lastEvents = this.S.events;
-      this.S.events = [];
+      this.lastEvents = this.adapter.start(this.S, this, now);
       this.touch(now);
       return { ok: true };
     }
 
-    /** いま誰かがAIとして動く必要があるか。あるなら何ms後か（なければ null） */
+    /** いまAI（や時間で進むこと）が動く必要があるか。あるなら何ms後か（なければ null） */
     nextAiDelay(now) {
       if (this.phase !== 'playing' || !this.S) return null;
-      const q = E.getRequest(this.S);
-      if (!q) return null;
-      const seat = this.seats[q.seat];
-      const big = this.lastEvents.filter((e) => BIG.has(e.t)).length;
-      const base = Math.min(4500, 1000 + big * 750);
-      if (seat.type === 'ai') return base;
-      const m = this.member(seat.cid);
-      if (!m) return base;
-      if (!m.connected) return Math.max(base, m.awaySince + AWAY_GRACE - now);
-      return null;
+      return this.adapter.delay(this, now);
     }
 
-    /** AI（または切断中の人の代わり）が1手進める。進めたら true */
+    /** 時間が来たことを1つ進める。進めたら true */
     aiStep(now) {
-      const d = this.nextAiDelay(now);
-      if (d === null) return false;
-      const q = E.getRequest(this.S);
-      const seat = this.seats[q.seat];
-      if (seat.type !== 'ai') {
-        const m = this.member(seat.cid);
-        if (m && (m.connected || now - m.awaySince < AWAY_GRACE)) return false;
-      }
-      const level = seat.type === 'ai' ? seat.level : 'normal';
-      const a = AI.decideSync(this.S, q, level === 'easy' ? 'easy' : 'normal');
-      this.lastEvents = E.apply(this.S, a);
+      if (this.phase !== 'playing' || !this.S) return false;
+      if (this.adapter.delay(this, now) === null) return false;
+      const ev = this.adapter.tick(this, now);
+      if (!ev) return false;
+      this.lastEvents = ev;
       this.finishRated();
       this.touch(now);
       return true;
     }
+
+    connectedHumans() { return this.members.filter((m) => m.connected).length; }
 
     /** 試合が終わったら部屋（待合室）に戻る。レート戦は最後まで終わってから */
     toLobby(cid, now) {
@@ -292,7 +399,7 @@
     }
 
     // ── レート戦 ──
-    /** 最後のゲームが終わったら、最初から最後まで座っていた人のレートを決める */
+    /** 試合が終わったら、最初から最後まで座っていた人のレートを決める */
     finishRated() {
       const S = this.S, info = S && S.rated;
       if (!info || info.finished || !S.matchOver) return;
@@ -306,23 +413,20 @@
       });
     }
 
-    /** 途中で部屋を出た人：残りのゲームは大貧民として棄権扱い */
+    /** 途中で部屋を出た人：棄権（得点のゲームは残りを最下位、勝ち負けのゲームは負け） */
     abandon(s, member) {
       const S = this.S, info = S && S.rated, st = this.seats[s];
       if (!info || info.finished || !st || !st.ratedCid || st.cid !== st.ratedCid || info.results[s]) return;
-      const total = RT.abandonTotal(S.players[s].score, S.history.length, S.maxGames, S.n);
-      const c = RT.change(info.base[s], info.base.filter((_, j) => j !== s), total, S.maxGames, info.matches[s]);
-      info.results[s] = { name: st.name, before: info.base[s], after: c.after, delta: c.delta, expected: c.expected, total, abandoned: true };
-      this.pushRating(st.ratedCid, c.delta, member);
+      const r = RT.abandonResult(S, s, info.base, info.matches[s]);
+      info.results[s] = Object.assign({ name: st.name, abandoned: true }, r);
+      this.pushRating(st.ratedCid, r.delta, member);
     }
 
     pushRating(cid, delta, member) {
-      this.ratingOut.push({ cid, delta });
+      this.ratingOut.push({ cid, game: this.game, delta });
       const m = member || this.member(cid);
       if (m) { m.rating = ratingOf(m) + delta; m.matches = (m.matches || 0) + 1; }
     }
-
-    connectedHumans() { return this.members.filter((m) => m.connected).length; }
 
     // ── 各プレイヤーに送る内容（他人の手札は伏せる） ──
     viewFor(cid, withEvents) {
@@ -330,6 +434,7 @@
       const v = {
         t: 'room',
         code: this.code,
+        game: this.game || 'daifugo',
         rev: this.rev,
         phase: this.phase,
         host: cid === hostCid,
@@ -345,10 +450,10 @@
           const m = s.type === 'human' ? this.member(s.cid) : null;
           return { name: s.name, type: s.type, robot: s.robot, connected: s.type === 'ai' ? true : !!(m && m.connected) };
         });
-        v.state = sanitize(this.S, seat);
-        v.events = withEvents ? filterEvents(this.lastEvents, seat) : [];
-        const q = E.getRequest(this.S);
-        v.request = q && q.seat === seat && seat >= 0 ? sanitizeRequest(q) : null;
+        const pv = this.adapter.view(this.S, seat, withEvents ? this.lastEvents : []);
+        v.state = pv.state;
+        v.events = pv.events;
+        v.request = pv.request;
       }
       return v;
     }
@@ -359,8 +464,8 @@
   }
   const ratingOf = (m) => (m && Number.isFinite(m.rating) ? m.rating : RT.START);
 
-  function sanitize(S, seat) {
-    const T = E.serialize(S);
+  function sanitizeDaifugo(S, seat) {
+    const T = D.Engine.serialize(S);
     T.players.forEach((p, i) => { if (i !== seat) p.hand = p.hand.map(() => '?'); });
     if (T.pending) {
       delete T.pending.rest;
@@ -373,21 +478,9 @@
     return T;
   }
 
-  function sanitizeRequest(q) {
-    const r = JSON.parse(JSON.stringify(q));
-    delete r.rest;
-    return r;
-  }
-
-  function filterEvents(events, seat) {
-    return events.map((ev) => {
-      if ((ev.t === 'give' || ev.t === 'exchange') && ev.from !== seat && ev.to !== seat) {
-        return Object.assign({}, ev, { cards: ev.cards.map(() => '?') });
-      }
-      return ev;
-    });
-  }
-
   D.RoomCore = RoomCore;
-  D.Online = { ROBOT_NAMES, AWAY_GRACE, sanitize, filterEvents, cleanName, cleanChat, CHAT_MAX, CHAT_KEEP };
+  D.Online = {
+    ROBOT_NAMES, AWAY_GRACE, ADAPTERS, cleanName, cleanChat, CHAT_MAX, CHAT_KEEP,
+    sanitize: sanitizeDaifugo, filterEvents: (evs, seat) => evs.map((ev) => ADAPTERS.daifugo.filterEvent(ev, seat)),
+  };
 })();

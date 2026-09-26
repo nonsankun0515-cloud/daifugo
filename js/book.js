@@ -235,4 +235,6 @@
   }
 
   D.Book = { TABS, render };
+  D.Books = D.Books || {};
+  D.Books.daifugo = D.Book;
 })();

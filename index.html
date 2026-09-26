@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#062d1e">
+<meta name="theme-color" content="#0b0806">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,42 +12,47 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap&text=0123456789AJKQORE">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap&text=0123456789AJKQORE%2B%E2%88%92-">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="app">
-  <section id="scr-title" class="screen title">
+  <!-- ホーム（下のナビでゲームを切り替える） -->
+  <section id="scr-home" class="screen home">
     <div class="room" aria-hidden="true"></div>
-    <div class="tbl" aria-hidden="true">
-      <div class="tbl-leather"></div>
-      <div class="tbl-stitch"></div>
-      <div class="tbl-wood"></div>
-      <div class="tbl-felt"><div class="felt-light"></div></div>
-    </div>
-    <div class="title-inner">
-      <div class="title-fan" id="title-fan"></div>
-      <h1 class="logo"><span class="logo-kanji">大富豪</span><span class="logo-sub">DAIFUGŌ</span></h1>
-      <p class="title-rating" id="title-rating"></p>
-      <div class="title-actions">
-        <button class="btn btn-gold btn-lg" id="btn-rated" type="button">レート戦</button>
-        <button class="btn btn-ghost btn-lg" id="btn-start" type="button">フリー対戦</button>
-        <button class="btn btn-ghost btn-lg" id="btn-resume" type="button" hidden>つづきから</button>
-        <button class="btn btn-ghost btn-lg" id="btn-online" type="button" hidden>オンライン対戦</button>
-        <div class="title-minor">
-          <button class="btn btn-ghost" id="btn-rules" type="button">ルールと設定</button>
-          <button class="btn btn-ghost" id="btn-book" type="button">ルールブック</button>
+    <div class="home-scroll" id="home-scroll">
+      <div class="home-view" id="home-daifugo" data-tab="daifugo">
+        <header class="hero">
+          <div class="hero-art"><div class="title-fan hero-fan" id="title-fan"></div></div>
+          <h1 class="hero-title"><span class="kanji">大富豪</span><span class="en">DAIFUGŌ</span></h1>
+          <p class="hero-tag">ローカルルールを1つずつ選べる、本格大富豪</p>
+        </header>
+        <p class="rate-strip" id="title-rating"></p>
+        <div class="home-cta">
+          <button class="btn btn-gold btn-lg" id="btn-rated" type="button">レート戦</button>
+          <button class="btn btn-ghost btn-lg" id="btn-start" type="button">フリー対戦</button>
+          <button class="btn btn-ghost btn-lg" id="btn-resume" type="button" hidden>つづきから</button>
         </div>
+        <div class="home-tiles">
+          <button class="tile" id="btn-online" type="button"><span class="ti"></span><span>オンライン</span></button>
+          <button class="tile" id="btn-book" type="button"><span class="ti"></span><span>ルールブック</span></button>
+          <button class="tile" id="btn-rules" type="button"><span class="ti"></span><span>ルールと設定</span></button>
+        </div>
+        <p class="home-note" id="title-rule"></p>
+        <p class="home-foot" id="title-foot"></p>
       </div>
-      <p class="title-rule" id="title-rule"></p>
-      <p class="title-foot" id="title-foot"></p>
+      <div class="home-view" id="home-sevens" data-tab="sevens" hidden></div>
+      <div class="home-view" id="home-speed" data-tab="speed" hidden></div>
+      <div class="home-view home-me" id="home-me" data-tab="me" hidden></div>
     </div>
+    <nav class="tabbar" id="tabbar" aria-label="ゲームの切り替え"></nav>
   </section>
 
+  <!-- 大富豪：ルールと設定 -->
   <section id="scr-rules" class="screen rules" hidden>
     <header class="bar">
       <button class="icon-btn" id="rules-back" type="button" aria-label="戻る"></button>
-      <h2>ルールと設定</h2>
+      <h2>大富豪・ルールと設定</h2>
       <span></span>
     </header>
     <div class="rules-scroll" id="rules-scroll">
@@ -58,10 +63,26 @@
     </footer>
   </section>
 
+  <!-- 七並べ・スピード：ルールと設定 -->
+  <section id="scr-gset" class="screen rules" hidden>
+    <header class="bar">
+      <button class="icon-btn" id="gset-back" type="button" aria-label="戻る"></button>
+      <h2 id="gset-title">ルールと設定</h2>
+      <span></span>
+    </header>
+    <div class="rules-scroll" id="gset-scroll">
+      <div class="rules-wrap" id="gset-wrap"></div>
+    </div>
+    <footer class="rules-foot">
+      <button class="btn btn-gold btn-lg" id="gset-start" type="button">この設定で対戦する</button>
+    </footer>
+  </section>
+
+  <!-- オンライン対戦（全ゲーム共通の入口と待合室） -->
   <section id="scr-online" class="screen rules online" hidden>
     <header class="bar">
       <button class="icon-btn" id="online-back" type="button" aria-label="戻る"></button>
-      <h2>オンライン対戦</h2>
+      <h2 id="online-title">オンライン対戦</h2>
       <span class="conn" id="online-conn" aria-live="polite"></span>
     </header>
     <div class="rules-scroll">
@@ -69,6 +90,7 @@
     </div>
   </section>
 
+  <!-- 大富豪の対局 -->
   <section id="scr-game" class="screen game" hidden>
     <div class="room" aria-hidden="true"></div>
     <div class="tbl" aria-hidden="true">
@@ -85,10 +107,10 @@
           <div class="hud-center" id="g-gameno"></div>
         </div>
         <div class="hud-right">
-          <button class="icon-btn chat-btn" id="g-chat" type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" id="g-chat-badge" hidden></span></button>
+          <button class="icon-btn chat-btn" data-chat-btn type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" hidden></span></button>
           <button class="icon-btn" id="g-book" type="button" aria-label="ルールブック"></button>
           <button class="icon-btn" id="g-log" type="button" aria-label="履歴"></button>
-          <button class="icon-btn" id="g-sound" type="button" aria-label="効果音"></button>
+          <button class="icon-btn" data-sound-btn type="button" aria-label="効果音"></button>
         </div>
       </header>
       <div id="seats"></div>
@@ -119,6 +141,85 @@
     </div>
   </section>
 
+  <!-- 七並べの対局 -->
+  <section id="scr-sevens" class="screen game sv" hidden>
+    <div class="room" aria-hidden="true"></div>
+    <div class="tbl" aria-hidden="true">
+      <div class="tbl-leather"></div>
+      <div class="tbl-stitch"></div>
+      <div class="tbl-wood"></div>
+      <div class="tbl-felt"><div class="felt-light"></div></div>
+    </div>
+    <div class="table" id="sv-table">
+      <header class="hud">
+        <div class="hud-left">
+          <button class="icon-btn" id="sv-menu" type="button" aria-label="メニュー"></button>
+          <div class="hud-center" id="sv-gameno"></div>
+        </div>
+        <div class="hud-right">
+          <button class="icon-btn chat-btn" data-chat-btn type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" hidden></span></button>
+          <button class="icon-btn" id="sv-book" type="button" aria-label="ルールブック"></button>
+          <button class="icon-btn" data-sound-btn type="button" aria-label="効果音"></button>
+        </div>
+      </header>
+      <div class="sv-seats" id="sv-seats"></div>
+      <div class="sv-board-wrap"><div class="sv-board" id="sv-board" aria-label="場"></div><div class="status" id="sv-status"></div></div>
+    </div>
+    <div class="me" id="sv-me">
+      <div class="prompt" id="sv-prompt" hidden>
+        <div class="prompt-text" id="sv-prompt-text"></div>
+        <div class="prompt-btns" id="sv-prompt-btns"></div>
+      </div>
+      <div class="me-top">
+        <div class="me-id" id="sv-me-id"></div>
+        <div class="sel-info" id="sv-info" aria-live="polite"></div>
+      </div>
+      <div class="hand" id="sv-hand" role="group" aria-label="あなたの手札"></div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm" id="sv-hint" type="button">ヒント</button>
+        <button class="btn btn-ghost" id="sv-pass" type="button">パス</button>
+        <button class="btn btn-gold" id="sv-play" type="button">出す</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- スピードの対局 -->
+  <section id="scr-speed" class="screen game spd" hidden>
+    <div class="room" aria-hidden="true"></div>
+    <div class="tbl" aria-hidden="true">
+      <div class="tbl-leather"></div>
+      <div class="tbl-stitch"></div>
+      <div class="tbl-wood"></div>
+      <div class="tbl-felt"><div class="felt-light"></div></div>
+    </div>
+    <div class="table spd-table" id="spd-table">
+      <header class="hud">
+        <div class="hud-left">
+          <button class="icon-btn" id="spd-menu" type="button" aria-label="メニュー"></button>
+          <div class="hud-center" id="spd-gameno"></div>
+        </div>
+        <div class="hud-right">
+          <button class="icon-btn chat-btn" data-chat-btn type="button" aria-label="チャット" hidden><span class="ic-slot"></span><span class="badge" hidden></span></button>
+          <button class="icon-btn" id="spd-book" type="button" aria-label="ルールブック"></button>
+          <button class="icon-btn" data-sound-btn type="button" aria-label="効果音"></button>
+        </div>
+      </header>
+      <div class="spd-side spd-opp" id="spd-opp">
+        <div class="spd-who"><span class="ava" id="spd-opp-ava"></span><span class="nm" id="spd-opp-name"></span><span class="spd-wins" id="spd-opp-wins"></span></div>
+        <div class="spd-row"><div class="spd-field" id="spd-opp-field"></div><div class="spd-deck" id="spd-opp-deck"></div></div>
+      </div>
+      <div class="spd-center" id="spd-center">
+        <div class="spd-pile" id="spd-pile-0" data-pile="0"></div>
+        <div class="spd-pile" id="spd-pile-1" data-pile="1"></div>
+        <div class="spd-call" id="spd-call" aria-live="polite"></div>
+      </div>
+      <div class="spd-side spd-me" id="spd-me">
+        <div class="spd-row"><div class="spd-deck" id="spd-my-deck"></div><div class="spd-field" id="spd-my-field"></div></div>
+        <div class="spd-who"><span class="ava" id="spd-my-ava"></span><span class="nm" id="spd-my-name">あなた</span><span class="spd-wins" id="spd-my-wins"></span></div>
+      </div>
+    </div>
+  </section>
+
   <aside class="chat" id="chat" hidden aria-label="チャット">
     <header>
       <h3>チャット</h3>
@@ -135,7 +236,7 @@
 
   <aside class="book" id="book" hidden aria-label="ルールブック">
     <header class="book-head">
-      <h3>ルールブック</h3>
+      <h3 id="book-title">ルールブック</h3>
       <button class="icon-btn" id="book-close" type="button" aria-label="ルールブックを閉じる"></button>
     </header>
     <nav class="book-tabs" id="book-tabs" role="tablist" aria-label="ルールブックの章"></nav>
@@ -151,12 +252,25 @@
 <script src="js/engine.js"></script>
 <script src="js/rating.js"></script>
 <script src="js/ai.js"></script>
+<script src="js/sevens/engine.js"></script>
+<script src="js/sevens/ai.js"></script>
+<script src="js/speed/engine.js"></script>
+<script src="js/speed/ai.js"></script>
+<script src="js/speed/host.js"></script>
 <script src="js/art.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/book.js"></script>
+<script src="js/sevens/book.js"></script>
+<script src="js/speed/book.js"></script>
 <script src="js/net.js"></script>
+<script src="js/common.js"></script>
+<script src="js/online-client.js"></script>
+<script src="js/shell.js"></script>
 <script src="js/app.js"></script>
+<script src="js/sevens/ui.js"></script>
+<script src="js/speed/ui.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

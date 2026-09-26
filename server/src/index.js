@@ -6,6 +6,11 @@ import '../../js/rules.js';
 import '../../js/engine.js';
 import '../../js/rating.js';
 import '../../js/ai.js';
+import '../../js/sevens/engine.js';
+import '../../js/sevens/ai.js';
+import '../../js/speed/engine.js';
+import '../../js/speed/ai.js';
+import '../../js/speed/host.js';
 import '../../js/online-room.js';
 
 const { RoomCore, Rating } = globalThis.DFG;
@@ -76,7 +81,9 @@ export class Room extends DurableObject {
         for (const other of this.ctx.getWebSockets()) {
           if (other !== ws && (other.deserializeAttachment() || {}).cid === cid) { try { other.close(4000, 'replaced'); } catch (e) { /* 無視 */ } }
         }
-        res = core.join(cid, msg.name, now, await this.lookupRating(cid));
+        // 空の部屋なら、入ってきた人のゲームの部屋になる
+        const game = core.members.length || core.phase !== 'lobby' ? core.game || 'daifugo' : String(msg.game || 'daifugo');
+        res = core.join(cid, msg.name, now, await this.lookupRating(cid, game), game);
         if (!res.ok) { this.sendError(ws, res.error); try { ws.close(4001, 'rejected'); } catch (e) { /* 無視 */ } return; }
         ws.serializeAttachment({ cid });
         // 入った人（戻ってきた人）には、最近のチャットを渡す
@@ -153,8 +160,8 @@ export class Room extends DurableObject {
   // ── レート（全部屋で共通の Ratings に保存） ──
   ratings() { return this.env.RATINGS.get(this.env.RATINGS.idFromName('global')); }
 
-  async lookupRating(cid) {
-    try { return await this.ratings().lookup(cid); } catch (e) { console.error('rating lookup', e); return null; }
+  async lookupRating(cid, game) {
+    try { return await this.ratings().lookup(cid, game); } catch (e) { console.error('rating lookup', e); return null; }
   }
 
   /** 部屋で決まったレート変動を保存する（失敗したら次の機会にもう一度） */
@@ -200,33 +207,37 @@ export class Room extends DurableObject {
   }
 }
 
-/** オンライン対戦のレート（端末ごと。キーは再接続用IDのハッシュで、IDそのものは保存しない） */
+const GAMES = new Set(['daifugo', 'sevens', 'speed']);
+
+/** オンライン対戦のレート（端末ごと・ゲームごと。キーは再接続用IDのハッシュで、IDそのものは保存しない） */
 export class Ratings extends DurableObject {
-  async key(cid) {
+  async key(cid, game) {
     const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('daifugo-rating:' + cid));
-    return 'r:' + Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
+    const g = GAMES.has(game) ? game : 'daifugo';
+    // 大富豪は、ゲームを選べるようになる前からのキーのまま
+    return 'r:' + Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('') + (g === 'daifugo' ? '' : ':' + g);
   }
 
-  async lookup(cid) {
+  async lookup(cid, game) {
     if (typeof cid !== 'string' || !cid) return null;
-    const v = await this.ctx.storage.get(await this.key(cid));
+    const v = await this.ctx.storage.get(await this.key(cid, game));
     return v ? { r: v.r, n: v.n } : { r: Rating.START, n: 0 };
   }
 
-  /** list: [{ cid, delta }] → [{ cid, r, n }] */
+  /** list: [{ cid, game, delta }] → [{ cid, game, r, n }] */
   async record(list) {
     const out = [];
     for (const it of Array.isArray(list) ? list.slice(0, 12) : []) {
       const delta = Math.round(Number(it && it.delta));
       if (typeof it.cid !== 'string' || !it.cid || !Number.isFinite(delta) || Math.abs(delta) > 400) continue;
-      const k = await this.key(it.cid);
+      const k = await this.key(it.cid, it.game);
       const v = (await this.ctx.storage.get(k)) || { r: Rating.START, n: 0, best: Rating.START };
       v.r += delta;
       v.n += 1;
       v.best = Math.max(v.best || Rating.START, v.r);
       v.at = Date.now();
       await this.ctx.storage.put(k, v);
-      out.push({ cid: it.cid, r: v.r, n: v.n });
+      out.push({ cid: it.cid, game: it.game, r: v.r, n: v.n });
     }
     return out;
   }
