@@ -18,10 +18,12 @@
   const OC = { cur: null, draftCode: '', entryGame: 'daifugo' };
   const mod = (o) => D.Games[(o && o.game) || OC.entryGame];
 
+  /** 招待リンク。LINE で送っても LINE の中ではなく、いつものブラウザ（Safari・Chrome）で開くように openExternalBrowser を付ける
+   * （いつものブラウザならホーム画面にも追加できる。開いたあとアドレスからは消す：Install.cleanURL） */
   function inviteURL(code) {
     const h = location.hostname;
     const here = h === 'localhost' || h === '127.0.0.1' || /github\.io$/.test(h);
-    return (here ? location.origin + location.pathname : D.Net.APP_URL) + '#r-' + code;
+    return (here ? location.origin + location.pathname : D.Net.APP_URL) + '?openExternalBrowser=1#r-' + code;
   }
 
   function showOnlineScreen() {

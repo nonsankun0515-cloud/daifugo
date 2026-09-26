@@ -267,6 +267,10 @@
     user: '<circle cx="12" cy="8.3" r="3.9"/><path d="M4.4 20.4c1.3-4.1 4.3-6.2 7.6-6.2s6.3 2.1 7.6 6.2"/>',
     globe: '<circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.5 2.4 3.7 5.3 3.7 8.6s-1.2 6.2-3.7 8.6M12 3.4C9.5 5.8 8.3 8.7 8.3 12s1.2 6.2 3.7 8.6"/>',
     sliders: '<path d="M4 7h9.5M18.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/>',
+    // ホーム画面に追加の案内（iPhoneの共有ボタン・Chromeの︙メニュー・追加）
+    share: '<path d="M12 14.5V3.5M8 7.5l4-4 4 4"/><path d="M8.5 10H6v10.5h12V10h-2.5"/>',
+    dots: '<circle cx="12" cy="5.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor"/>',
+    addHome: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>',
   };
   function icon(name, size) {
     const s = size || 20;

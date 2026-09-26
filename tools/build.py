@@ -54,6 +54,7 @@ def artifact(full):
 
 
 MANIFEST = {
+    "id": "./",
     "name": "Cards Table",
     "short_name": "Cards Table",
     "description": "大富豪・七並べ・スピード。AIロボットや友だちと対戦できるトランプゲーム。",

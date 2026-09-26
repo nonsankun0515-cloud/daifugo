@@ -67,6 +67,7 @@
     document.querySelectorAll('.home-view').forEach((v) => { v.hidden = v.dataset.tab !== tab; });
     if (tab === 'me') renderMe();
     else if (D.Games[tab]) D.Games[tab].renderHome();
+    renderInstallTip();
     $('home-scroll').scrollTop = 0;
     if (store.tab !== tab) { store.tab = tab; CM.save(); }
   }
@@ -124,11 +125,22 @@
     st.panel.appendChild(CM.row('出せるカードを明るく表示', '', CM.toggle('opt-playable', s.showPlayable, (v) => set('showPlayable', v), false, '出せるカードを表示')));
     wrap.appendChild(st.s);
 
+    const ins = D.Install.mySection();
+    if (ins) wrap.appendChild(ins);
+
     const about = document.createElement('section');
     about.className = 'me-about';
-    about.innerHTML = '<p>iPhone では Safari の共有ボタンから「ホーム画面に追加」すると、アプリのように全画面で遊べます。</p>' +
-      '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
+    about.innerHTML = '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
     wrap.appendChild(about);
+  }
+
+  /** ホームの上の「ホーム画面に追加」の案内（スマホのブラウザで開いているときだけ） */
+  function renderInstallTip() {
+    const el = $('install-tip');
+    const html = current === 'me' ? '' : D.Install.tipHTML();
+    el.hidden = !html;
+    el.innerHTML = html;
+    if (html) D.Install.bindTip(el);
   }
 
   function init() {
@@ -139,6 +151,12 @@
       SND.play('select');
       showHome(b.dataset.tab);
     }));
+    // 「追加する」ボタンが使えるようになった・追加し終わったら、案内を書き直す
+    D.Install.onChange = () => {
+      if (!CM.visible('scr-home')) return;
+      renderInstallTip();
+      if (current === 'me') renderMe();
+    };
     // 大富豪のホームのボタン（index.html に書いてあるもの）
     $('btn-online').querySelector('.ti').innerHTML = A.icon('globe', 22);
     $('btn-book').querySelector('.ti').innerHTML = A.icon('book', 22);

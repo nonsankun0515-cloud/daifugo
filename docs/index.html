@@ -1115,6 +1115,28 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
 .rt-game .ti { color: var(--gold-light); display: grid; }
 .rt-row b { font-family: var(--font-num); font-size: 19px; color: var(--gold-light); margin-right: 5px; }
 .rt-row small { font-size: 10.5px; color: var(--muted); }
+/* ホーム画面に追加の案内 */
+.install-tip {
+  max-width: 540px;
+  margin: 0 auto 14px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 8px 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(58, 45, 24, 0.95), rgba(28, 21, 12, 0.95));
+  border: 1px solid rgba(217, 178, 90, 0.55);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  animation: viewIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.install-tip .it-ic { color: var(--gold-light); flex: none; display: grid; }
+.install-tip .it-text { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.45; color: var(--ivory-dim); }
+.install-tip .it-text b { color: var(--gold-light); }
+.install-tip .btn { flex: none; padding: 8px 12px; }
+.install-tip .it-close { flex: none; width: 32px; height: 32px; border: 0; background: none; color: var(--muted); }
+.install-steps { margin: 4px 0 8px; padding-left: 1.4em; font-size: 14px; line-height: 1.7; color: var(--ivory); text-align: left; }
+.install-steps li { margin: 6px 0; }
+.install-steps b { color: var(--gold-light); }
+.step-ic { display: inline-grid; place-items: center; width: 26px; height: 26px; margin: 0 2px; vertical-align: -7px; border-radius: 7px; background: rgba(217, 178, 90, 0.16); color: var(--gold-light); }
+a.btn { text-decoration: none; }
 .me-about { text-align: center; font-size: 12px; color: var(--ivory-dim); line-height: 1.7; }
 .me-about p { margin: 0 0 4px; }
 .me-about .muted { color: var(--muted); letter-spacing: 0.1em; }
@@ -1471,6 +1493,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   <section id="scr-home" class="screen home">
     <div class="room" aria-hidden="true"></div>
     <div class="home-scroll" id="home-scroll">
+      <div class="install-tip" id="install-tip" hidden></div>
       <div class="home-view" id="home-daifugo" data-tab="daifugo">
         <header class="hero">
           <div class="hero-art"><div class="hero-fan" id="title-fan"></div></div>
@@ -4918,6 +4941,10 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     user: '<circle cx="12" cy="8.3" r="3.9"/><path d="M4.4 20.4c1.3-4.1 4.3-6.2 7.6-6.2s6.3 2.1 7.6 6.2"/>',
     globe: '<circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.5 2.4 3.7 5.3 3.7 8.6s-1.2 6.2-3.7 8.6M12 3.4C9.5 5.8 8.3 8.7 8.3 12s1.2 6.2 3.7 8.6"/>',
     sliders: '<path d="M4 7h9.5M18.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/>',
+    // ホーム画面に追加の案内（iPhoneの共有ボタン・Chromeの︙メニュー・追加）
+    share: '<path d="M12 14.5V3.5M8 7.5l4-4 4 4"/><path d="M8.5 10H6v10.5h12V10h-2.5"/>',
+    dots: '<circle cx="12" cy="5.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor"/>',
+    addHome: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>',
   };
   function icon(name, size) {
     const s = size || 20;
@@ -7108,6 +7135,188 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
 
 </script>
 <script>
+/* ホーム画面に追加（アプリとして使う）の案内。
+ * Android・PCの Chrome / Edge は「追加する」でそのままインストール画面を出す（beforeinstallprompt）。
+ * iPhone は Safari でも Chrome でも共有ボタンから追加できるので、開いているブラウザに合わせた手順を見せる。
+ * LINE などアプリの中のブラウザでは追加できないので、ふつうのブラウザで開き直す案内をする。 */
+(function () {
+  'use strict';
+  const D = globalThis.DFG;
+  const A = D.Art, UI = D.UI, CM = D.Common, SND = D.Sound;
+  const esc = UI.esc;
+
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isIPadOS = /Macintosh/.test(ua) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1;
+  const platform = /iPhone|iPad|iPod/.test(ua) || isIPadOS ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
+  function browserName() {
+    if (/ Line\//i.test(ua)) return 'line';
+    if (/Instagram|FBAN|FBAV|Twitter|; wv\)/.test(ua)) return 'inapp';
+    if (platform === 'ios') return /CriOS/.test(ua) ? 'chrome' : /EdgiOS/.test(ua) ? 'edge' : /FxiOS/.test(ua) ? 'firefox' : 'safari';
+    if (/SamsungBrowser/.test(ua)) return 'samsung';
+    if (/Edg(A)?\//.test(ua)) return 'edge';
+    if (/Firefox\//.test(ua)) return 'firefox';
+    if (/Chrome\//.test(ua)) return 'chrome';
+    if (/Safari\//.test(ua)) return 'safari';
+    return 'other';
+  }
+  const browser = browserName();
+
+  // Chrome / Edge がくれる「インストールしてよいか」を聞く画面（出せるときだけ届く）
+  let deferred = null;
+  let installed = false;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; refresh(); });
+  addEventListener('appinstalled', () => { installed = true; deferred = null; refresh(); UI.toast('ホーム画面に追加しました', 2500); });
+  let onChange = null;
+  function refresh() { if (onChange) onChange(); }
+
+  const standalone = () => installed ||
+    (typeof matchMedia === 'function' && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches)) ||
+    (typeof navigator !== 'undefined' && navigator.standalone === true);
+  const inArtifact = () => !!(globalThis.claude && globalThis.claude.hot) || /claude(usercontent)?\.(ai|com)$/i.test(location.hostname);
+
+  /** 案内を出してよい環境か（Claude のページの中やアプリとして開いているときは出さない） */
+  const available = () => !inArtifact() && !standalone();
+
+  // ── ホームの上の小さな案内（スマホだけ。閉じたら30日は出さない） ──
+  const TIP_OFF_DAYS = 30;
+  function showTip() {
+    if (!available() || platform === 'desktop') return false;
+    const off = CM.store.installTipOff || 0;
+    return Date.now() - off > TIP_OFF_DAYS * 86400000;
+  }
+  function hideTip() { CM.store.installTipOff = Date.now(); CM.save(); refresh(); }
+
+  // ── 手順 ──
+  const ic = (name) => '<span class="step-ic">' + A.icon(name, 18) + '</span>';
+  function steps() {
+    if (browser === 'line' || browser === 'inapp') {
+      const app = browser === 'line' ? 'LINE' : 'このアプリ';
+      return {
+        lead: app + 'の中のブラウザでは、ホーム画面に追加できません。いつものブラウザ（' + (platform === 'ios' ? 'Safari や Chrome' : 'Chrome') + '）で開き直してから追加してください。',
+        list: ['下の「ブラウザで開く」をタップ（開かないときは、画面の ' + ic('dots') + ' や「…」メニューから「ブラウザで開く」／「Safariで開く」）',
+          '開いたブラウザで、もう一度「ホーム画面に追加」を押す'],
+        external: true,
+      };
+    }
+    if (platform === 'ios') {
+      if (browser === 'chrome' || browser === 'edge' || browser === 'firefox') {
+        const name = { chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox' }[browser];
+        return {
+          lead: name + ' でもホーム画面に追加できます。',
+          list: ['アドレスバーの右にある 共有ボタン ' + ic('share') + ' をタップ（見つからないときは、右下の「…」メニュー →「共有」）',
+            '下にスクロールして「<b>ホーム画面に追加</b>」' + ic('addHome'),
+            '「Webアプリとして開く」がオンなのを確かめて、右上の「<b>追加</b>」'],
+        };
+      }
+      return {
+        lead: 'Safari の共有ボタンから追加できます。',
+        list: ['画面の下（または上）の 共有ボタン ' + ic('share') + ' をタップ',
+          '下にスクロールして「<b>ホーム画面に追加</b>」' + ic('addHome'),
+          '「Webアプリとして開く」がオンなのを確かめて、右上の「<b>追加</b>」'],
+      };
+    }
+    if (platform === 'android') {
+      const menu = browser === 'samsung' ? '下の「≡」メニュー' : browser === 'firefox' ? '右上（または右下）の ' + ic('dots') + ' メニュー' : '右上の ' + ic('dots') + ' メニュー';
+      return {
+        lead: 'ブラウザのメニューから追加できます。',
+        list: [menu + ' を開く', '「<b>ホーム画面に追加</b>」または「<b>アプリをインストール</b>」', '確認の画面で「<b>インストール</b>」／「<b>追加</b>」'],
+      };
+    }
+    if (browser === 'safari') {
+      return { lead: 'Mac の Safari では Dock に追加できます。', list: ['メニューバーの「ファイル」→「<b>Dockに追加</b>」', '「<b>追加</b>」'] };
+    }
+    return {
+      lead: 'Chrome / Edge ではアプリとしてインストールできます。',
+      list: ['アドレスバーの右端のインストールボタン、または ' + ic('dots') + ' メニューを開く', '「<b>インストール</b>」（Chrome は「キャスト、保存、共有」の中）を選ぶ'],
+    };
+  }
+
+  /** 開いているページを、アプリの中のブラウザの外（ふつうのブラウザ）で開き直す URL（LINE の openExternalBrowser） */
+  function externalURL() {
+    return location.origin + location.pathname + '?openExternalBrowser=1' + location.hash;
+  }
+
+  function showGuide() {
+    const s = steps();
+    const dlg = UI.openDialog('<h3>ホーム画面に追加</h3><p>アイコンから、アプリのように全画面で遊べます。' + esc(s.lead) + '</p>' +
+      '<ol class="install-steps">' + s.list.map((t) => '<li>' + t + '</li>').join('') + '</ol>' +
+      '<p class="menu-note">追加したアプリの記録（レート・途中の対局）は、ブラウザで遊んだ記録とは別になります。</p>' +
+      '<div class="btns">' + (s.external ? '<a class="btn btn-gold" id="ins-ext" href="' + esc(externalURL()) + '">ブラウザで開く</a>' : '') +
+      '<button class="btn ' + (s.external ? 'btn-ghost' : 'btn-gold') + '" type="button" id="ins-ok">わかった</button></div>', { onBackdrop: UI.closeDialog });
+    dlg.querySelector('#ins-ok').addEventListener('click', UI.closeDialog);
+  }
+
+  /** 「追加する」：Chrome / Edge ならインストール画面、ほかは手順 */
+  async function start() {
+    SND.play('select');
+    if (deferred) {
+      const ev = deferred;
+      deferred = null;
+      try {
+        ev.prompt();
+        const r = await ev.userChoice;
+        if (r && r.outcome === 'accepted') { installed = true; refresh(); }
+      } catch (e) { showGuide(); }
+      refresh();
+      return;
+    }
+    showGuide();
+  }
+
+  // ── 画面の部品 ──
+  /** ホームの上に出す案内の中身（出さないときは空） */
+  function tipHTML() {
+    if (!showTip()) return '';
+    return '<span class="it-ic">' + A.icon('addHome', 22) + '</span>' +
+      '<span class="it-text"><b>ホーム画面に追加</b>すると、アプリのように全画面で遊べます</span>' +
+      '<button class="btn btn-gold btn-sm" type="button" data-ins="go">' + (deferred ? '追加する' : '追加のしかた') + '</button>' +
+      '<button class="icon-btn it-close" type="button" data-ins="off" aria-label="案内を閉じる">' + A.icon('close', 16) + '</button>';
+  }
+  function bindTip(el) {
+    const go = el.querySelector('[data-ins="go"]');
+    const off = el.querySelector('[data-ins="off"]');
+    if (go) go.addEventListener('click', start);
+    if (off) off.addEventListener('click', hideTip);
+  }
+
+  /** マイページの1行（アプリとして開いているときは「追加済み」） */
+  function mySection() {
+    if (inArtifact()) return null;
+    const sec = CM.section('アプリとして使う', standalone() ? '' : 'アイコンから全画面で遊べます');
+    if (standalone()) {
+      sec.panel.appendChild(CM.row('ホーム画面のアプリで遊んでいます', 'ブラウザで開いたときとは別に、記録が保存されます', null));
+    } else {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-gold btn-sm';
+      b.textContent = deferred ? '追加する' : '追加のしかた';
+      b.addEventListener('click', start);
+      sec.panel.appendChild(CM.row(platform === 'desktop' ? 'アプリとしてインストール' : 'ホーム画面に追加', guideLabel(), b));
+    }
+    return sec.s;
+  }
+  function guideLabel() {
+    if (browser === 'line' || browser === 'inapp') return 'いまはアプリの中のブラウザです。ふつうのブラウザで開き直してください';
+    if (platform === 'ios') return ({ chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox' }[browser] || 'Safari') + ' の共有ボタンから追加できます';
+    return deferred ? 'ボタンを押すと、すぐに追加できます' : 'ブラウザのメニューから追加できます';
+  }
+
+  /** 開いたときに付いてきた LINE 用のしるし（?openExternalBrowser=1）は、アドレスから消しておく */
+  function cleanURL() {
+    if (!/[?&]openExternalBrowser=/.test(location.search)) return;
+    const q = location.search.replace(/[?&]openExternalBrowser=[^&]*/g, '').replace(/^&/, '?');
+    try { history.replaceState(null, '', location.pathname + (q === '?' ? '' : q) + location.hash); } catch (e) { /* 無視 */ }
+  }
+
+  D.Install = {
+    platform, browser, available, standalone, showTip, tipHTML, bindTip, mySection, start, showGuide, cleanURL,
+    set onChange(f) { onChange = f; },
+    get canPrompt() { return !!deferred; },
+  };
+})();
+
+</script>
+<script>
 /* オンライン対戦（画面側・共通）：部屋への接続・待合室・チャット・招待。
  * 対局中の表示と操作は各ゲームの online（D.Games[game].online）が受け持つ */
 (function () {
@@ -7128,10 +7337,12 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   const OC = { cur: null, draftCode: '', entryGame: 'daifugo' };
   const mod = (o) => D.Games[(o && o.game) || OC.entryGame];
 
+  /** 招待リンク。LINE で送っても LINE の中ではなく、いつものブラウザ（Safari・Chrome）で開くように openExternalBrowser を付ける
+   * （いつものブラウザならホーム画面にも追加できる。開いたあとアドレスからは消す：Install.cleanURL） */
   function inviteURL(code) {
     const h = location.hostname;
     const here = h === 'localhost' || h === '127.0.0.1' || /github\.io$/.test(h);
-    return (here ? location.origin + location.pathname : D.Net.APP_URL) + '#r-' + code;
+    return (here ? location.origin + location.pathname : D.Net.APP_URL) + '?openExternalBrowser=1#r-' + code;
   }
 
   function showOnlineScreen() {
@@ -7619,6 +7830,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     document.querySelectorAll('.home-view').forEach((v) => { v.hidden = v.dataset.tab !== tab; });
     if (tab === 'me') renderMe();
     else if (D.Games[tab]) D.Games[tab].renderHome();
+    renderInstallTip();
     $('home-scroll').scrollTop = 0;
     if (store.tab !== tab) { store.tab = tab; CM.save(); }
   }
@@ -7676,11 +7888,22 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     st.panel.appendChild(CM.row('出せるカードを明るく表示', '', CM.toggle('opt-playable', s.showPlayable, (v) => set('showPlayable', v), false, '出せるカードを表示')));
     wrap.appendChild(st.s);
 
+    const ins = D.Install.mySection();
+    if (ins) wrap.appendChild(ins);
+
     const about = document.createElement('section');
     about.className = 'me-about';
-    about.innerHTML = '<p>iPhone では Safari の共有ボタンから「ホーム画面に追加」すると、アプリのように全画面で遊べます。</p>' +
-      '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
+    about.innerHTML = '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
     wrap.appendChild(about);
+  }
+
+  /** ホームの上の「ホーム画面に追加」の案内（スマホのブラウザで開いているときだけ） */
+  function renderInstallTip() {
+    const el = $('install-tip');
+    const html = current === 'me' ? '' : D.Install.tipHTML();
+    el.hidden = !html;
+    el.innerHTML = html;
+    if (html) D.Install.bindTip(el);
   }
 
   function init() {
@@ -7691,6 +7914,12 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
       SND.play('select');
       showHome(b.dataset.tab);
     }));
+    // 「追加する」ボタンが使えるようになった・追加し終わったら、案内を書き直す
+    D.Install.onChange = () => {
+      if (!CM.visible('scr-home')) return;
+      renderInstallTip();
+      if (current === 'me') renderMe();
+    };
     // 大富豪のホームのボタン（index.html に書いてあるもの）
     $('btn-online').querySelector('.ti').innerHTML = A.icon('globe', 22);
     $('btn-book').querySelector('.ti').innerHTML = A.icon('book', 22);
@@ -10118,6 +10347,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   const A = D.Art, CM = D.Common, OC = D.OnlineClient, SH = D.Shell, SND = D.Sound;
 
   function start(data) {
+    if (D.Install) D.Install.cleanURL();
     document.body.insertAdjacentHTML('afterbegin', A.SHARED_DEFS);
     if (D.Textures) D.Textures.apply();
     CM.init();

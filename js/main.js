@@ -5,6 +5,7 @@
   const A = D.Art, CM = D.Common, OC = D.OnlineClient, SH = D.Shell, SND = D.Sound;
 
   function start(data) {
+    if (D.Install) D.Install.cleanURL();
     document.body.insertAdjacentHTML('afterbegin', A.SHARED_DEFS);
     if (D.Textures) D.Textures.apply();
     CM.init();
