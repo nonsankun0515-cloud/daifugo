@@ -1254,7 +1254,10 @@ a.btn { text-decoration: none; }
 .spd-slot .card.fresh { animation: dealIn 0.18s ease-out; }
 .spd-slot .card.mine { cursor: grab; touch-action: none; transition: filter 0.2s, box-shadow 0.2s; }
 .spd-slot .card.mine:hover { box-shadow: 0 0 0 2px rgba(243, 221, 155, 0.7), 0 10px 22px rgba(0, 0, 0, 0.45); }
-.spd-slot .card.drag { z-index: 30; cursor: grabbing; box-shadow: 0 0 0 2.5px var(--gold-light), 0 18px 36px rgba(0, 0, 0, 0.55); animation: none; }
+.spd-slot .card.held { box-shadow: 0 0 0 2px rgba(243, 221, 155, 0.8), 0 10px 22px rgba(0, 0, 0, 0.45); }
+.spd-slot .card.drag { z-index: 30; cursor: grabbing; box-shadow: 0 0 0 2.5px var(--gold-light), 0 22px 40px rgba(0, 0, 0, 0.6); animation: none; }
+.spd-slot .card.nudge { animation: nudge 0.32s ease-out; }
+@keyframes nudge { 0%, 100% { transform: none; } 45% { transform: translateY(-10px) scale(1.04); } }
 .spd-slot .card.dim { filter: brightness(0.6) saturate(0.65); }
 .spd-slot .card.nope { animation: nope 0.3s; }
 .spd-empty { position: absolute; inset: 0; border-radius: 8px; background: rgba(0, 0, 0, 0.14); box-shadow: inset 0 0 0 1.5px rgba(228, 188, 98, 0.22); }
@@ -1272,7 +1275,8 @@ a.btn { text-decoration: none; }
 .spd-center { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: clamp(22px, 9vw, 80px); }
 .spd-pile { position: relative; isolation: isolate; width: var(--pw2, 78px); height: calc(var(--pw2, 78px) * 1.4); flex: none; }
 .spd-pile-base { position: absolute; inset: -7px; border-radius: 13px; background: rgba(0, 0, 0, 0.14); box-shadow: inset 0 0 0 1.5px rgba(228, 188, 98, 0.35); transition: box-shadow 0.15s; }
-.spd-pile.over .spd-pile-base { box-shadow: inset 0 0 0 2.5px #f3dd9b, 0 0 22px rgba(233, 196, 106, 0.65); }
+.spd-pile.can .spd-pile-base { box-shadow: inset 0 0 0 2px rgba(243, 221, 155, 0.85), 0 0 18px rgba(233, 196, 106, 0.45); animation: pulse 0.9s ease-in-out infinite; }
+.spd-pile.over .spd-pile-base { inset: -11px; box-shadow: inset 0 0 0 3px #fff1c2, 0 0 30px rgba(233, 196, 106, 0.9); background: rgba(233, 196, 106, 0.16); animation: none; }
 .spd-call {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);
@@ -1305,7 +1309,7 @@ a.btn { text-decoration: none; }
   .sv-seat .name { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sv-seat.turn .ava, .svc.target, .spd-call.on { animation: none; }
+  .sv-seat.turn .ava, .svc.target, .spd-call.on, .spd-pile.can .spd-pile-base { animation: none; }
 }
 
 /* ───────── ルールブック ───────── */
@@ -6651,9 +6655,9 @@ a.btn { text-decoration: none; }
     h += sect('出せなくなったら', '<p>2人とも出せるカードがなくなったら、もう一度「<b>せーの</b>」で山札から1枚ずつ台札に出します。山札がない人は場札から1枚出します。</p>');
     h += sect('勝ち・引き分け', '<p>場札も山札もなくなった方の勝ちです。2人が同時になくなったら<b>引き分け</b>で、そのゲームは数えずにもう1ゲームします。</p>');
     h += sect('画面の使い方', '<ul class="bk-list">' +
-      '<li>場札を<b>タップ</b>すると、出せる台札に出ます（両方に出せるときは、あとが続きやすいほう）。</li>' +
-      '<li>場札を台札まで<b>ドラッグ</b>すると、出す台札を自分で選べます。</li>' +
-      '<li>明るく見える場札が、今出せるカードです。</li></ul>');
+      '<li>場札を指でつかんで、台札まで<b>ドラッグ</b>して出します（タップだけでは出ません）。</li>' +
+      '<li>台札に向かって<b>はじいても</b>出せます（フリック）。</li>' +
+      '<li>カードをつかむと、出せる台札が光ります。明るく見える場札が、今出せるカードです。</li></ul>');
     return h;
   }
 
@@ -9975,7 +9979,7 @@ a.btn { text-decoration: none; }
         if (!card) box.innerHTML = '<div class="spd-empty"></div>';
         else {
           box.innerHTML = '<div class="card fresh' + (mine ? ' mine' : '') + '" data-slot="' + slot + '"' +
-            (mine ? ' role="button" tabindex="0" aria-label="' + esc(SP.cardName(card)) + '"' : '') + '>' + A.faceSVG(card) + '</div>';
+            (mine ? ' aria-label="' + esc(SP.cardName(card)) + '"' : '') + '>' + A.faceSVG(card) + '</div>';
           if (mine) bindCard(box.firstChild, slot);
         }
       }
@@ -10005,37 +10009,22 @@ a.btn { text-decoration: none; }
   }
 
   // ─────────────────────────────────────────────
-  // 操作：タップで出す（両方に出せるなら続きやすいほう）、ドラッグで台札を選ぶ
+  // 操作：場札を台札までドラッグして出す。台札に向かってはじいても（フリック）出せる。
+  // タップでは出さない（ユーザーの希望：タップだけだとつまらない。レート戦・オンラインも全員この出し方）
   // ─────────────────────────────────────────────
   function pilesFor(slot) {
     const card = S.players[human].field[slot];
     if (!card) return [];
     return [0, 1].filter((i) => SP.canStack(S.rules, card, SP.topOf(S, i)));
   }
-  function bestPile(slot, piles) {
-    if (piles.length === 1) return piles[0];
-    let best = piles[0], bestV = -1;
-    for (const pile of piles) {
-      const T = SP.clone(S);
-      T.piles[pile].push(T.players[human].field[slot]);
-      T.players[human].field[slot] = null;
-      const v = SP.playable(T, human).length - 0.3 * SP.playable(T, opp()).length;
-      if (v > bestV) { bestV = v; best = pile; }
-    }
-    return best;
-  }
 
   function tryPlay(slot, pile, fromEl) {
-    if (!S || S.phase !== 'play') { SND.play('error'); return; }
-    const piles = pilesFor(slot);
-    if (!piles.length) { shake(fromEl); SND.play('error'); return; }
-    if (pile == null || !piles.includes(pile)) pile = pile == null ? bestPile(slot, piles) : null;
-    if (pile == null) { shake(fromEl); SND.play('error'); return; }
+    if (!S || S.phase !== 'play' || !pilesFor(slot).includes(pile)) { snapBack(fromEl, true); SND.play('error'); return; }
     const card = S.players[human].field[slot];
     const o = onlineRoom();
     if (o) {
       // オンライン：すぐに動かして見せ、サーバーの結果で正しい状態に合わせる
-      if (!o.conn.send({ t: 'action', action: { type: 'play', slot, pile } })) { UI.toast('通信が切れています'); return; }
+      if (!o.conn.send({ t: 'action', action: { type: 'play', slot, pile } })) { snapBack(fromEl); UI.toast('通信が切れています'); return; }
       pending.push({ slot, pile, card, at: now() });
       flyFrom(fromEl, pile, card);
       S.piles[pile].push(card);
@@ -10044,59 +10033,127 @@ a.btn { text-decoration: none; }
       return;
     }
     let evs;
-    try { evs = SP.play(S, human, slot, pile); } catch (e) { shake(fromEl); SND.play('error'); return; }
+    try { evs = SP.play(S, human, slot, pile); } catch (e) { snapBack(fromEl, true); SND.play('error'); return; }
     SPH.schedule(S, now(), levelOf);
-    animate(evs, fromEl);
+    animate(evs, fromEl); // 離した場所から台札へ飛ばす
     after();
     loop();
   }
 
-  function shake(el) {
-    if (!el) return;
-    el.classList.remove('nope');
-    void el.offsetWidth;
-    el.classList.add('nope');
+  /** 出せなかったカードを場札の位置へ戻す（nope なら首を振る） */
+  function snapBack(el, nope) {
+    if (!el || !el.isConnected) return;
+    el.classList.remove('drag');
+    el.style.transition = 'transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    el.style.transform = '';
+    setTimeout(() => {
+      el.style.transition = '';
+      if (nope) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); }
+    }, 190);
   }
 
+  const pileEls = () => [$('spd-pile-0'), $('spd-pile-1')];
+  const centerOf = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+
+  /** 持っているカードの真ん中が、どの台札の上にあるか（台札より少し広めに取る） */
+  function dropTarget(el) {
+    const c = centerOf(el.getBoundingClientRect());
+    let best = null, bestD = Infinity;
+    pileEls().forEach((p, i) => {
+      const r = p.getBoundingClientRect();
+      const mx = r.width * 0.45, my = r.height * 0.3;
+      if (c.x < r.left - mx || c.x > r.right + mx || c.y < r.top - my || c.y > r.bottom + my) return;
+      const pc = centerOf(r), d = Math.hypot(c.x - pc.x, c.y - pc.y);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    return best;
+  }
+
+  /** はじいた（速く動かして離した）ときの行き先：動いていた向きにいちばん近い台札 */
+  function flickTarget(el, trail, t) {
+    const pts = trail.filter((p) => t - p.t <= 110);
+    if (pts.length < 2) return null;
+    const a = pts[0], b = pts[pts.length - 1];
+    const dt = Math.max(1, b.t - a.t);
+    const vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
+    const speed = Math.hypot(vx, vy);
+    if (speed < 0.45) return null; // px/ms。ゆっくり離したら、はじいたことにしない
+    const c = centerOf(el.getBoundingClientRect());
+    let best = null, bestA = Infinity;
+    pileEls().forEach((p, i) => {
+      const pc = centerOf(p.getBoundingClientRect());
+      const dx = pc.x - c.x, dy = pc.y - c.y;
+      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * vx + dy * vy) / (Math.hypot(dx, dy) * speed || 1))));
+      if (ang < bestA) { bestA = ang; best = i; }
+    });
+    return bestA < (32 * Math.PI) / 180 ? best : null;
+  }
+
+  // タップしただけのときの案内（出しすぎないように間を空ける）
+  let hintAt = 0;
+  function dragHint(el) {
+    if (el) { el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); }
+    if (now() - hintAt < 8000) return;
+    hintAt = now();
+    UI.toast('カードを台札までドラッグして出します（はじいても出せます）', 2200);
+  }
+
+  function markPiles(slot, over) {
+    const ok = S && S.phase === 'play' ? pilesFor(slot) : [];
+    pileEls().forEach((p, i) => {
+      p.classList.toggle('can', ok.includes(i));
+      p.classList.toggle('over', over === i && ok.includes(i));
+    });
+  }
+  const clearPiles = () => pileEls().forEach((p) => p.classList.remove('can', 'over'));
+
   function bindCard(el, slot) {
-    let sx = 0, sy = 0, dragging = false, pid = null;
+    let pid = null, sx = 0, sy = 0, dragging = false, trail = [];
     el.addEventListener('pointerdown', (e) => {
-      if (e.button > 0) return;
+      if (e.button > 0 || pid !== null) return;
       pid = e.pointerId;
       sx = e.clientX; sy = e.clientY; dragging = false;
+      trail = [{ x: sx, y: sy, t: e.timeStamp }];
+      el.style.transition = '';
+      el.classList.remove('nudge', 'nope'); // 前の首振りが残っていると、動かしている間の位置がずれる
       try { el.setPointerCapture(pid); } catch (err) { /* 無視 */ }
+      el.classList.add('held');
+      markPiles(slot, null); // 持った瞬間に、出せる台札を光らせる
     });
     el.addEventListener('pointermove', (e) => {
       if (pid !== e.pointerId) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
-      if (!dragging && Math.hypot(dx, dy) > 10) { dragging = true; el.classList.add('drag'); }
-      if (dragging) {
-        el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(1.06)';
-        const over = pileAt(e.clientX, e.clientY);
-        document.querySelectorAll('.spd-pile').forEach((p) => p.classList.toggle('over', over != null && +p.dataset.pile === over));
-      }
+      trail.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
+      if (trail.length > 8) trail.shift();
+      if (!dragging && Math.hypot(dx, dy) > 4) { dragging = true; el.classList.add('drag'); }
+      if (!dragging) return;
+      // 指に吸いつくように動かし、横に動かした勢いで少し傾ける
+      const back = trail[Math.max(0, trail.length - 4)];
+      const tilt = Math.max(-14, Math.min(14, (e.clientX - back.x) * 0.35));
+      el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + tilt.toFixed(1) + 'deg) scale(1.08)';
+      markPiles(slot, dropTarget(el));
     });
     const end = (e) => {
       if (pid !== e.pointerId) return;
       pid = null;
-      document.querySelectorAll('.spd-pile').forEach((p) => p.classList.remove('over'));
-      if (dragging) {
-        const pile = pileAt(e.clientX, e.clientY);
-        el.classList.remove('drag');
-        el.style.transform = '';
-        if (pile != null) tryPlay(slot, pile, el);
-      } else tryPlay(slot, null, el);
+      el.classList.remove('held');
+      clearPiles();
+      if (!dragging) { dragHint(el); return; }
+      trail.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
+      let pile = dropTarget(el);
+      if (pile == null) pile = flickTarget(el, trail, e.timeStamp);
+      if (pile == null) { snapBack(el); return; }
+      el.classList.remove('drag');
+      tryPlay(slot, pile, el);
     };
     el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', (e) => { if (pid === e.pointerId) { pid = null; el.classList.remove('drag'); el.style.transform = ''; } });
-    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tryPlay(slot, null, el); } });
-  }
-  function pileAt(x, y) {
-    for (const i of [0, 1]) {
-      const r = $('spd-pile-' + i).getBoundingClientRect();
-      if (x >= r.left - 16 && x <= r.right + 16 && y >= r.top - 16 && y <= r.bottom + 16) return i;
-    }
-    return null;
+    el.addEventListener('pointercancel', (e) => {
+      if (pid !== e.pointerId) return;
+      pid = null;
+      el.classList.remove('held');
+      clearPiles();
+      snapBack(el);
+    });
   }
 
   // ─────────────────────────────────────────────

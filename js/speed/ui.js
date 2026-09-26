@@ -257,7 +257,7 @@
         if (!card) box.innerHTML = '<div class="spd-empty"></div>';
         else {
           box.innerHTML = '<div class="card fresh' + (mine ? ' mine' : '') + '" data-slot="' + slot + '"' +
-            (mine ? ' role="button" tabindex="0" aria-label="' + esc(SP.cardName(card)) + '"' : '') + '>' + A.faceSVG(card) + '</div>';
+            (mine ? ' aria-label="' + esc(SP.cardName(card)) + '"' : '') + '>' + A.faceSVG(card) + '</div>';
           if (mine) bindCard(box.firstChild, slot);
         }
       }
@@ -287,37 +287,22 @@
   }
 
   // ─────────────────────────────────────────────
-  // 操作：タップで出す（両方に出せるなら続きやすいほう）、ドラッグで台札を選ぶ
+  // 操作：場札を台札までドラッグして出す。台札に向かってはじいても（フリック）出せる。
+  // タップでは出さない（ユーザーの希望：タップだけだとつまらない。レート戦・オンラインも全員この出し方）
   // ─────────────────────────────────────────────
   function pilesFor(slot) {
     const card = S.players[human].field[slot];
     if (!card) return [];
     return [0, 1].filter((i) => SP.canStack(S.rules, card, SP.topOf(S, i)));
   }
-  function bestPile(slot, piles) {
-    if (piles.length === 1) return piles[0];
-    let best = piles[0], bestV = -1;
-    for (const pile of piles) {
-      const T = SP.clone(S);
-      T.piles[pile].push(T.players[human].field[slot]);
-      T.players[human].field[slot] = null;
-      const v = SP.playable(T, human).length - 0.3 * SP.playable(T, opp()).length;
-      if (v > bestV) { bestV = v; best = pile; }
-    }
-    return best;
-  }
 
   function tryPlay(slot, pile, fromEl) {
-    if (!S || S.phase !== 'play') { SND.play('error'); return; }
-    const piles = pilesFor(slot);
-    if (!piles.length) { shake(fromEl); SND.play('error'); return; }
-    if (pile == null || !piles.includes(pile)) pile = pile == null ? bestPile(slot, piles) : null;
-    if (pile == null) { shake(fromEl); SND.play('error'); return; }
+    if (!S || S.phase !== 'play' || !pilesFor(slot).includes(pile)) { snapBack(fromEl, true); SND.play('error'); return; }
     const card = S.players[human].field[slot];
     const o = onlineRoom();
     if (o) {
       // オンライン：すぐに動かして見せ、サーバーの結果で正しい状態に合わせる
-      if (!o.conn.send({ t: 'action', action: { type: 'play', slot, pile } })) { UI.toast('通信が切れています'); return; }
+      if (!o.conn.send({ t: 'action', action: { type: 'play', slot, pile } })) { snapBack(fromEl); UI.toast('通信が切れています'); return; }
       pending.push({ slot, pile, card, at: now() });
       flyFrom(fromEl, pile, card);
       S.piles[pile].push(card);
@@ -326,59 +311,127 @@
       return;
     }
     let evs;
-    try { evs = SP.play(S, human, slot, pile); } catch (e) { shake(fromEl); SND.play('error'); return; }
+    try { evs = SP.play(S, human, slot, pile); } catch (e) { snapBack(fromEl, true); SND.play('error'); return; }
     SPH.schedule(S, now(), levelOf);
-    animate(evs, fromEl);
+    animate(evs, fromEl); // 離した場所から台札へ飛ばす
     after();
     loop();
   }
 
-  function shake(el) {
-    if (!el) return;
-    el.classList.remove('nope');
-    void el.offsetWidth;
-    el.classList.add('nope');
+  /** 出せなかったカードを場札の位置へ戻す（nope なら首を振る） */
+  function snapBack(el, nope) {
+    if (!el || !el.isConnected) return;
+    el.classList.remove('drag');
+    el.style.transition = 'transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    el.style.transform = '';
+    setTimeout(() => {
+      el.style.transition = '';
+      if (nope) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); }
+    }, 190);
   }
 
+  const pileEls = () => [$('spd-pile-0'), $('spd-pile-1')];
+  const centerOf = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+
+  /** 持っているカードの真ん中が、どの台札の上にあるか（台札より少し広めに取る） */
+  function dropTarget(el) {
+    const c = centerOf(el.getBoundingClientRect());
+    let best = null, bestD = Infinity;
+    pileEls().forEach((p, i) => {
+      const r = p.getBoundingClientRect();
+      const mx = r.width * 0.45, my = r.height * 0.3;
+      if (c.x < r.left - mx || c.x > r.right + mx || c.y < r.top - my || c.y > r.bottom + my) return;
+      const pc = centerOf(r), d = Math.hypot(c.x - pc.x, c.y - pc.y);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    return best;
+  }
+
+  /** はじいた（速く動かして離した）ときの行き先：動いていた向きにいちばん近い台札 */
+  function flickTarget(el, trail, t) {
+    const pts = trail.filter((p) => t - p.t <= 110);
+    if (pts.length < 2) return null;
+    const a = pts[0], b = pts[pts.length - 1];
+    const dt = Math.max(1, b.t - a.t);
+    const vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
+    const speed = Math.hypot(vx, vy);
+    if (speed < 0.45) return null; // px/ms。ゆっくり離したら、はじいたことにしない
+    const c = centerOf(el.getBoundingClientRect());
+    let best = null, bestA = Infinity;
+    pileEls().forEach((p, i) => {
+      const pc = centerOf(p.getBoundingClientRect());
+      const dx = pc.x - c.x, dy = pc.y - c.y;
+      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * vx + dy * vy) / (Math.hypot(dx, dy) * speed || 1))));
+      if (ang < bestA) { bestA = ang; best = i; }
+    });
+    return bestA < (32 * Math.PI) / 180 ? best : null;
+  }
+
+  // タップしただけのときの案内（出しすぎないように間を空ける）
+  let hintAt = 0;
+  function dragHint(el) {
+    if (el) { el.classList.remove('nudge'); void el.offsetWidth; el.classList.add('nudge'); }
+    if (now() - hintAt < 8000) return;
+    hintAt = now();
+    UI.toast('カードを台札までドラッグして出します（はじいても出せます）', 2200);
+  }
+
+  function markPiles(slot, over) {
+    const ok = S && S.phase === 'play' ? pilesFor(slot) : [];
+    pileEls().forEach((p, i) => {
+      p.classList.toggle('can', ok.includes(i));
+      p.classList.toggle('over', over === i && ok.includes(i));
+    });
+  }
+  const clearPiles = () => pileEls().forEach((p) => p.classList.remove('can', 'over'));
+
   function bindCard(el, slot) {
-    let sx = 0, sy = 0, dragging = false, pid = null;
+    let pid = null, sx = 0, sy = 0, dragging = false, trail = [];
     el.addEventListener('pointerdown', (e) => {
-      if (e.button > 0) return;
+      if (e.button > 0 || pid !== null) return;
       pid = e.pointerId;
       sx = e.clientX; sy = e.clientY; dragging = false;
+      trail = [{ x: sx, y: sy, t: e.timeStamp }];
+      el.style.transition = '';
+      el.classList.remove('nudge', 'nope'); // 前の首振りが残っていると、動かしている間の位置がずれる
       try { el.setPointerCapture(pid); } catch (err) { /* 無視 */ }
+      el.classList.add('held');
+      markPiles(slot, null); // 持った瞬間に、出せる台札を光らせる
     });
     el.addEventListener('pointermove', (e) => {
       if (pid !== e.pointerId) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
-      if (!dragging && Math.hypot(dx, dy) > 10) { dragging = true; el.classList.add('drag'); }
-      if (dragging) {
-        el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(1.06)';
-        const over = pileAt(e.clientX, e.clientY);
-        document.querySelectorAll('.spd-pile').forEach((p) => p.classList.toggle('over', over != null && +p.dataset.pile === over));
-      }
+      trail.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
+      if (trail.length > 8) trail.shift();
+      if (!dragging && Math.hypot(dx, dy) > 4) { dragging = true; el.classList.add('drag'); }
+      if (!dragging) return;
+      // 指に吸いつくように動かし、横に動かした勢いで少し傾ける
+      const back = trail[Math.max(0, trail.length - 4)];
+      const tilt = Math.max(-14, Math.min(14, (e.clientX - back.x) * 0.35));
+      el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + tilt.toFixed(1) + 'deg) scale(1.08)';
+      markPiles(slot, dropTarget(el));
     });
     const end = (e) => {
       if (pid !== e.pointerId) return;
       pid = null;
-      document.querySelectorAll('.spd-pile').forEach((p) => p.classList.remove('over'));
-      if (dragging) {
-        const pile = pileAt(e.clientX, e.clientY);
-        el.classList.remove('drag');
-        el.style.transform = '';
-        if (pile != null) tryPlay(slot, pile, el);
-      } else tryPlay(slot, null, el);
+      el.classList.remove('held');
+      clearPiles();
+      if (!dragging) { dragHint(el); return; }
+      trail.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
+      let pile = dropTarget(el);
+      if (pile == null) pile = flickTarget(el, trail, e.timeStamp);
+      if (pile == null) { snapBack(el); return; }
+      el.classList.remove('drag');
+      tryPlay(slot, pile, el);
     };
     el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', (e) => { if (pid === e.pointerId) { pid = null; el.classList.remove('drag'); el.style.transform = ''; } });
-    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tryPlay(slot, null, el); } });
-  }
-  function pileAt(x, y) {
-    for (const i of [0, 1]) {
-      const r = $('spd-pile-' + i).getBoundingClientRect();
-      if (x >= r.left - 16 && x <= r.right + 16 && y >= r.top - 16 && y <= r.bottom + 16) return i;
-    }
-    return null;
+    el.addEventListener('pointercancel', (e) => {
+      if (pid !== e.pointerId) return;
+      pid = null;
+      el.classList.remove('held');
+      clearPiles();
+      snapBack(el);
+    });
   }
 
   // ─────────────────────────────────────────────
