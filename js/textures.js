@@ -183,7 +183,87 @@
     return c.toDataURL('image/png');
   }
 
+  // ─────────────────────────────────────────────
+  // ヨーロッパ調のヴィンテージの額縁（CSS の border-image で使う SVG）
+  //   9つに切り分けて伸ばすので、角の飾りは「切り分け（slice）」の内側に収め、辺はまっすぐな線だけにする
+  // ─────────────────────────────────────────────
+  const GOLD_LINE = 'rgb(214,176,96)';
+
+  function svgURL(w, h, body, defs) {
+    const s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      (defs ? '<defs>' + defs + '</defs>' : '') + body + '</svg>';
+    return 'url("data:image/svg+xml,' + encodeURIComponent(s) + '")';
+  }
+  const n2 = (v) => +v.toFixed(2);
+
+  /** 角を内側に丸くえぐった形（ヴィンテージのラベル）。r：えぐる半径、d：外からの距離（えぐりの中心は外の角のまま） */
+  function notched(w, h, r, d) {
+    const R = r + d, e = Math.sqrt(R * R - d * d);
+    const A = 'A' + n2(R) + ' ' + n2(R) + ' 0 0 0 ';
+    return 'M' + n2(e) + ' ' + n2(d) + 'H' + n2(w - e) + A + n2(w - d) + ' ' + n2(e) + 'V' + n2(h - e) + A + n2(w - e) + ' ' + n2(h - d) +
+      'H' + n2(e) + A + n2(d) + ' ' + n2(h - e) + 'V' + n2(e) + A + n2(e) + ' ' + n2(d) + 'Z';
+  }
+
+  /** 4つの角に同じ飾りを置く（左上に描いたものを鏡に映す） */
+  function atCorners(w, h, g) {
+    return [[1, 1, 0, 0], [-1, 1, w, 0], [1, -1, 0, h], [-1, -1, w, h]]
+      .map(([sx, sy, tx, ty]) => '<g transform="translate(' + tx + ' ' + ty + ') scale(' + sx + ' ' + sy + ')">' + g + '</g>').join('');
+  }
+  const svgDiamond = (x, y, r, fill) => '<path d="M' + x + ' ' + n2(y - r) + 'L' + n2(x + r) + ' ' + y + 'L' + x + ' ' + n2(y + r) + 'L' + n2(x - r) + ' ' + y + 'Z" fill="' + fill + '"/>';
+
+  /** 金の板のボタン（96×48、切り分け16） */
+  function frameGold() {
+    const W = 96, H = 48, r = 9;
+    const defs = '<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgb(251,234,180)"/><stop offset=".45" stop-color="rgb(226,189,102)"/>' +
+      '<stop offset=".6" stop-color="rgb(196,152,62)"/><stop offset="1" stop-color="rgb(166,125,46)"/></linearGradient>';
+    return svgURL(W, H,
+      '<path d="' + notched(W, H, r, 0.6) + '" fill="url(#g)" stroke="rgb(94,68,18)" stroke-width="1.2"/>' +
+      '<path d="' + notched(W, H, r, 4.2) + '" fill="none" stroke="rgb(107,76,18)" stroke-opacity=".6" stroke-width="1"/>' +
+      '<path d="' + notched(W, H, r, 5.3) + '" fill="none" stroke="rgb(255,246,214)" stroke-opacity=".5" stroke-width=".8"/>', defs);
+  }
+
+  /** 黒檀の板に金の二重線のボタン */
+  function frameDark() {
+    const W = 96, H = 48, r = 9;
+    return svgURL(W, H,
+      '<path d="' + notched(W, H, r, 0.6) + '" fill="rgb(18,7,10)" fill-opacity=".8" stroke="' + GOLD_LINE + '" stroke-width="1.3"/>' +
+      '<path d="' + notched(W, H, r, 4.4) + '" fill="none" stroke="' + GOLD_LINE + '" stroke-opacity=".5" stroke-width=".9"/>');
+  }
+
+  /** 板・タイルの額縁：金の二重線と、角の飾り石（48×48、切り分け16） */
+  function framePanel() {
+    const W = 48, H = 48;
+    const corner = '<rect x=".8" y=".8" width="8.6" height="8.6" fill="rgb(24,9,13)" stroke="' + GOLD_LINE + '" stroke-width="1.1"/>' + svgDiamond(5.1, 5.1, 2.4, GOLD_LINE);
+    return svgURL(W, H,
+      '<rect x=".8" y=".8" width="' + (W - 1.6) + '" height="' + (H - 1.6) + '" fill="none" stroke="' + GOLD_LINE + '" stroke-width="1.4"/>' +
+      '<rect x="4.6" y="4.6" width="' + (W - 9.2) + '" height="' + (H - 9.2) + '" fill="none" stroke="' + GOLD_LINE + '" stroke-opacity=".5" stroke-width=".8"/>' +
+      atCorners(W, H, corner));
+  }
+
+  /** 見出し・ダイアログの大きな額縁：角に唐草の飾り（96×96、切り分け32） */
+  function frameOrnate() {
+    const W = 96, H = 96;
+    const corner =
+      '<path d="M6.5 27A20.5 20.5 0 0 0 27 6.5" fill="none" stroke="' + GOLD_LINE + '" stroke-width="1.2"/>' +
+      '<path d="M6.5 20.5C12 20.5 14.5 17 14.5 14.5C17 14.5 20.5 12 20.5 6.5" fill="none" stroke="' + GOLD_LINE + '" stroke-opacity=".75" stroke-width=".9"/>' +
+      svgDiamond(10.5, 10.5, 3.2, GOLD_LINE) +
+      '<circle cx="6.5" cy="30.5" r="1.4" fill="' + GOLD_LINE + '"/><circle cx="30.5" cy="6.5" r="1.4" fill="' + GOLD_LINE + '"/>';
+    return svgURL(W, H,
+      '<rect x="1.2" y="1.2" width="' + (W - 2.4) + '" height="' + (H - 2.4) + '" fill="none" stroke="' + GOLD_LINE + '" stroke-width="2.2"/>' +
+      '<rect x="6.5" y="6.5" width="' + (W - 13) + '" height="' + (H - 13) + '" fill="none" stroke="' + GOLD_LINE + '" stroke-opacity=".55" stroke-width=".9"/>' +
+      atCorners(W, H, corner));
+  }
+
+  function applyFrames() {
+    const root = document.documentElement.style;
+    root.setProperty('--fr-gold', frameGold());
+    root.setProperty('--fr-dark', frameDark());
+    root.setProperty('--fr-panel', framePanel());
+    root.setProperty('--fr-orn', frameOrnate());
+  }
+
   function apply() {
+    try { applyFrames(); } catch (e) { /* 額縁が作れなくても、ふつうの枠で表示できる */ }
     try {
       const root = document.documentElement.style;
       root.setProperty('--tex-felt', 'url(' + felt() + ')');

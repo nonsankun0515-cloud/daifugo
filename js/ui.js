@@ -168,7 +168,7 @@
       A.pip('D', cx + rx, cy - mk * 0.62, mk) + A.pip('C', cx + rx, cy + mk * 0.62, mk) + '</g>';
     // 有効なローカルルール名を金文字で印刷（席の下に隠れない場所に）
     const names = PRINT_RULES.filter((k) => S.rules[k]).map((k) => D.Rules.BY_KEY[k].label);
-    const font = 'font-family="\'Shippori Mincho B1\',\'Hiragino Mincho ProN\',\'Yu Mincho\',serif" font-weight="700"';
+    const font = 'font-family="\'Kaisei Decol\',\'Hiragino Mincho ProN\',\'Yu Mincho\',serif" font-weight="700"';
     const charW = fs * 1.08;
     const lobeW = rx - sw / 2 - fs * 2.2;
     let bottomUsed = cy + ry;
@@ -217,7 +217,7 @@
     const lf = fs * 1.9;
     const ly = bottomUsed + lf * 1.3;
     if (ly + 4 < h) {
-      s += '<text x="' + f(cx + lf * 0.45) + '" y="' + f(ly) + '" text-anchor="middle" font-family="\'Shippori Mincho B1\',\'Hiragino Mincho ProN\',\'Yu Mincho\',serif" font-weight="800" font-size="' +
+      s += '<text x="' + f(cx + lf * 0.45) + '" y="' + f(ly) + '" text-anchor="middle" font-family="\'Kaisei Decol\',\'Hiragino Mincho ProN\',\'Yu Mincho\',serif" font-weight="700" font-size="' +
         f(lf) + '" letter-spacing="' + f(lf * 0.9) + '" fill="url(#dfg-foil)" opacity=".36">大富豪</text>';
     }
     host.innerHTML = s + '</svg>';
