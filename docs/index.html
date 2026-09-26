@@ -57,6 +57,18 @@
   --tbl-bottom: 6px;
   --rail: calc(var(--leather) + var(--wood));
   --speed: 1;
+  /* ロビー（ホーム・マイページ・設定・オンライン）：カジノの絨毯（ワインレッドと金）。模様は textures.js */
+  --lb-room:
+    radial-gradient(110% 55% at 50% 0%, rgba(255, 206, 140, 0.2), rgba(255, 206, 140, 0) 65%),
+    radial-gradient(150% 110% at 50% 38%, rgba(10, 0, 4, 0) 35%, rgba(10, 0, 4, 0.82) 100%),
+    linear-gradient(rgba(22, 2, 8, 0.46), rgba(22, 2, 8, 0.46)),
+    var(--tex-carpet, none) 50% 0 / 112px 112px,
+    #2c0810;
+  --lb-panel: linear-gradient(180deg, rgba(40, 8, 17, 0.92), rgba(17, 3, 8, 0.94));
+  --lb-strip: rgba(22, 4, 10, 0.86);
+  --lb-bar: linear-gradient(180deg, rgba(36, 6, 14, 0.92), rgba(14, 2, 6, 0.97));
+  --lb-card: rgba(20, 3, 9, 0.84);
+  --lb-line: rgba(217, 178, 90, 0.42);
   color-scheme: dark;
 }
 
@@ -226,7 +238,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .felt-print svg { position: absolute; left: 0; top: 0; overflow: visible; }
 
 /* ───────── ルールと設定 ───────── */
-.rules { display: flex; flex-direction: column; background: linear-gradient(180deg, #17130f, #0e0b09); }
+.rules { display: flex; flex-direction: column; background: var(--lb-room); }
+.rules .card-panel, .home .card-panel { background: var(--lb-card); }
 .bar {
   display: grid;
   grid-template-columns: 44px 1fr 44px;
@@ -234,7 +247,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   gap: 8px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--lacquer-line);
-  background: rgba(12, 10, 8, 0.9);
+  background: rgba(24, 4, 10, 0.92);
 }
 .bar h2 { margin: 0; text-align: center; font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 5vw, 20px); letter-spacing: 0.08em; color: var(--gold-light); white-space: nowrap; }
 .rules-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 16px 24px; }
@@ -247,6 +260,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   font-size: 17px;
   letter-spacing: 0.1em;
   color: var(--gold-light);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.6);
 }
 .sect-title small { font-family: var(--font-ui); font-weight: 500; font-size: 12px; letter-spacing: 0.02em; color: var(--muted); }
 .card-panel {
@@ -275,7 +289,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .presets { display: flex; flex-wrap: wrap; gap: 8px; }
 .preset {
   border: 1px solid rgba(217, 178, 90, 0.4);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--lb-card);
   color: var(--ivory);
   border-radius: 12px;
   padding: 10px 14px;
@@ -286,13 +300,13 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 }
 .preset b { font-size: 15px; }
 .preset span { font-size: 11.5px; color: var(--ivory-dim); line-height: 1.45; }
-.preset[aria-pressed='true'] { border-color: var(--gold); background: rgba(217, 178, 90, 0.16); box-shadow: inset 0 0 0 1px var(--gold); }
+.preset[aria-pressed='true'] { border-color: var(--gold); background: linear-gradient(rgba(217, 178, 90, 0.16), rgba(217, 178, 90, 0.16)), var(--lb-card); box-shadow: inset 0 0 0 1px var(--gold); }
 .preset[aria-pressed='true'] b { color: var(--gold-light); }
 .custom-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
 .rules-foot {
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--lacquer-line);
-  background: rgba(12, 10, 8, 0.95);
+  background: rgba(24, 4, 10, 0.95);
   display: flex;
   justify-content: center;
 }
@@ -355,7 +369,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   padding: 18px 16px;
   border-radius: 16px;
   border: 1px solid rgba(217, 178, 90, 0.45);
-  background: radial-gradient(120% 140% at 50% 0%, rgba(217, 178, 90, 0.16), rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(120% 140% at 50% 0%, rgba(217, 178, 90, 0.16), rgba(0, 0, 0, 0) 70%), var(--lb-card);
 }
 .room-label { font-size: 12px; letter-spacing: 0.2em; color: var(--ivory-dim); }
 .room-code {
@@ -388,14 +402,14 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .member .mname small { font-weight: 500; color: var(--ivory-dim); margin-left: 4px; }
 .member.ai .mname { color: var(--ivory-dim); font-weight: 500; }
 .rt-chip { font-family: var(--font-num); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--gold-light); min-width: 3em; text-align: right; }
-.online-rate { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 10px; padding: 4px 0 2px; font-size: 12px; color: var(--ivory-dim); }
+.online-rate { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 10px; padding: 11px 14px; border-radius: 14px; background: var(--lb-strip); border: 1px solid var(--lb-line); font-size: 12px; color: var(--ivory-dim); }
 .online-rate .lbl { font-weight: 700; color: var(--gold); letter-spacing: 0.14em; }
 .online-rate b { font-family: var(--font-num); font-size: 26px; font-weight: 900; color: var(--gold-light); line-height: 1; }
 .online-rate .sub { font-size: 11px; color: var(--muted); }
 .host-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; color: #241a07; background: linear-gradient(180deg, #fbe7a4, #d6a93f); }
 .lobby-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-bottom: 8px; }
-.online-wait { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 0; text-align: center; }
-.wait-big { font-size: 16px; font-weight: 700; color: var(--gold-light); margin: 0; }
+.online-wait { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 36px 16px; border-radius: 16px; background: var(--lb-card); border: 1px solid var(--lb-line); text-align: center; }
+.wait-big { font-size: 16px; font-weight: 700; color: var(--gold-light); margin: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.6); }
 .code-inline { font-family: var(--font-num); letter-spacing: 0.15em; color: var(--gold-light); }
 
 /* ───────── チャット（オンライン対戦のときだけ） ───────── */
@@ -944,7 +958,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .menu-note { font-size: 12px !important; margin: 12px 0 0 !important; }
 
 /* ───────── アプリの外枠：ホーム・下のナビ・マイページ ───────── */
-.home { background: #0b0806; }
+.home { background: #2c0810; }
+.home .room { background: var(--lb-room); }
 .home-scroll {
   position: absolute;
   inset: 0;
@@ -1014,8 +1029,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   margin: 0;
   padding: 11px 14px;
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(40, 31, 23, 0.9), rgba(18, 14, 10, 0.9));
-  border: 1px solid var(--lacquer-line);
+  background: var(--lb-strip);
+  border: 1px solid var(--lb-line);
   font-size: 12px; color: var(--ivory-dim); letter-spacing: 0.06em;
 }
 .rate-strip .lbl { font-weight: 700; color: var(--gold); letter-spacing: 0.14em; }
@@ -1030,8 +1045,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   min-height: 78px;
   padding: 12px 6px;
   border-radius: 16px;
-  border: 1px solid rgba(217, 178, 90, 0.32);
-  background: linear-gradient(180deg, rgba(42, 33, 25, 0.95), rgba(17, 13, 10, 0.95));
+  border: 1px solid var(--lb-line);
+  background: var(--lb-panel);
   box-shadow: inset 0 1px 0 rgba(255, 240, 210, 0.07), 0 8px 18px rgba(0, 0, 0, 0.35);
   color: var(--ivory);
   font: 700 12.5px/1.2 var(--font-ui);
@@ -1043,7 +1058,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .tile:active { transform: scale(0.97); }
 .tile .ti { color: var(--gold-light); display: grid; place-items: center; }
 .tile[hidden] { display: none !important; }
-.home-note, .home-foot { margin: 0; text-align: center; font-size: 12px; line-height: 1.6; color: var(--ivory-dim); }
+.home-note, .home-foot { margin: 0; text-align: center; font-size: 12px; line-height: 1.6; color: var(--ivory-dim); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.7); }
 .home-note b { color: var(--gold-light); }
 .home-foot { color: var(--muted); font-size: 11.5px; }
 
@@ -1056,7 +1071,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   grid-template-columns: repeat(4, minmax(0, 1fr));
   height: calc(64px + env(safe-area-inset-bottom, 0px));
   padding: 0 max(6px, calc((100% - 560px) / 2)) env(safe-area-inset-bottom, 0px);
-  background: linear-gradient(180deg, rgba(24, 19, 14, 0.9), rgba(10, 8, 6, 0.97));
+  background: var(--lb-bar);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   backdrop-filter: blur(14px) saturate(1.2);
   border-top: 1px solid rgba(217, 178, 90, 0.3);
@@ -1091,8 +1106,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   display: flex; align-items: center; gap: 14px;
   padding: 16px;
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(42, 33, 25, 0.95), rgba(17, 13, 10, 0.95));
-  border: 1px solid rgba(217, 178, 90, 0.4);
+  background: var(--lb-panel);
+  border: 1px solid var(--lb-line);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
 }
 .me-ava { width: 60px; height: 60px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px #c9a14a, 0 0 0 4px rgba(0, 0, 0, 0.4); overflow: hidden; }
@@ -1122,7 +1137,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   display: flex; align-items: center; gap: 10px;
   padding: 10px 8px 10px 12px;
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(58, 45, 24, 0.95), rgba(28, 21, 12, 0.95));
+  background: linear-gradient(180deg, rgba(66, 14, 26, 0.95), rgba(26, 4, 10, 0.95));
   border: 1px solid rgba(217, 178, 90, 0.55);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
   animation: viewIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -1137,7 +1152,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
 .install-steps b { color: var(--gold-light); }
 .step-ic { display: inline-grid; place-items: center; width: 26px; height: 26px; margin: 0 2px; vertical-align: -7px; border-radius: 7px; background: rgba(217, 178, 90, 0.16); color: var(--gold-light); }
 a.btn { text-decoration: none; }
-.me-about { text-align: center; font-size: 12px; color: var(--ivory-dim); line-height: 1.7; }
+.me-about { text-align: center; font-size: 12px; color: var(--ivory-dim); line-height: 1.7; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.7); }
 .me-about p { margin: 0 0 4px; }
 .me-about .muted { color: var(--muted); letter-spacing: 0.1em; }
 .me-about .credit { margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--muted); }
@@ -4937,7 +4952,7 @@ a.btn { text-decoration: none; }
 
 </script>
 <script>
-/* 大富豪 — テーブルの素材（フェルト・木・革）をキャンバスで作る */
+/* テーブルとロビーの素材（フェルト・木・革・絨毯）をキャンバスで作る */
 (function () {
   'use strict';
   const D = (globalThis.DFG = globalThis.DFG || {});
@@ -5046,12 +5061,89 @@ a.btn { text-decoration: none; }
     return c.toDataURL('image/png');
   }
 
+  // 絨毯の花びら（中心から先端へ）を n 枚、放射状に
+  function rosette(g, x, y, R, n, rot, fill, stroke, lw, w) {
+    g.save();
+    g.translate(x, y);
+    g.rotate(rot);
+    for (let i = 0; i < n; i++) {
+      g.save();
+      g.rotate((i / n) * Math.PI * 2);
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.bezierCurveTo(R * 0.3, -R * w, R * 0.78, -R * w * 0.62, R, 0);
+      g.bezierCurveTo(R * 0.78, R * w * 0.62, R * 0.3, R * w, 0, 0);
+      g.closePath();
+      g.fillStyle = fill;
+      g.fill();
+      if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); }
+      g.restore();
+    }
+    g.restore();
+  }
+
+  function diamond(g, x, y, r, fill) {
+    g.beginPath();
+    g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y);
+    g.closePath();
+    g.fillStyle = fill;
+    g.fill();
+  }
+
+  /** カジノの絨毯（ホームなどの背景）：ワインレッドの地に、金の菱形の格子と花のメダリオン。上下左右につながる */
+  function carpet() {
+    const T = 132, PX = 2; // 高精細の画面でもにじまないように2倍で描く
+    const c = canvas(T * PX, T * PX);
+    const g = c.getContext('2d');
+    g.scale(PX, PX);
+    const GOLD = '#c9a052', GOLD2 = 'rgba(232,203,132,0.9)';
+    const corners = [[0, 0], [T, 0], [0, T], [T, T]];
+    g.fillStyle = '#4d0f1d';
+    g.fillRect(0, 0, T, T);
+    // 角のまわりの菱形は少し濃い色
+    for (const [x, y] of corners) diamond(g, x, y, T / 2, '#3a0a16');
+    // 菱形の格子（2本線）
+    g.strokeStyle = GOLD;
+    for (const [k, lw] of [[0.5, 1.4], [0.43, 0.7]]) {
+      g.lineWidth = lw;
+      g.beginPath();
+      g.moveTo(T / 2, T / 2 - T * k); g.lineTo(T / 2 + T * k, T / 2); g.lineTo(T / 2, T / 2 + T * k); g.lineTo(T / 2 - T * k, T / 2);
+      g.closePath();
+      g.stroke();
+    }
+    // まん中のメダリオン
+    rosette(g, T / 2, T / 2, T * 0.34, 8, 0, '#0c3639', GOLD, 1.1, 0.56);
+    rosette(g, T / 2, T / 2, T * 0.22, 8, Math.PI / 8, '#621425', GOLD2, 0.9, 0.6);
+    rosette(g, T / 2, T / 2, T * 0.1, 4, Math.PI / 4, '#d6b064', null, 0, 0.62);
+    g.beginPath();
+    g.arc(T / 2, T / 2, T * 0.035, 0, Math.PI * 2);
+    g.fillStyle = '#2a0710';
+    g.fill();
+    // 角の小さな花（4つの角に描いて、つなぎ目なく並ぶように）
+    for (const [x, y] of corners) {
+      rosette(g, x, y, T * 0.17, 4, Math.PI / 4, '#142344', GOLD, 1, 0.5);
+      rosette(g, x, y, T * 0.08, 4, 0, GOLD, null, 0, 0.5);
+    }
+    // 格子の上の小さな金の粒
+    for (const [x, y] of [[T / 4, T / 4], [T * 3 / 4, T / 4], [T / 4, T * 3 / 4], [T * 3 / 4, T * 3 / 4]]) diamond(g, x, y, 2.6, GOLD2);
+    // 毛足のざらつき
+    const r = rng(5);
+    const img = g.getImageData(0, 0, c.width, c.height);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const n = (r() - 0.5) * 22;
+      img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n;
+    }
+    g.putImageData(img, 0, 0);
+    return c.toDataURL('image/png');
+  }
+
   function apply() {
     try {
       const root = document.documentElement.style;
       root.setProperty('--tex-felt', 'url(' + felt() + ')');
       root.setProperty('--tex-wood', 'url(' + wood() + ')');
       root.setProperty('--tex-leather', 'url(' + leather() + ')');
+      root.setProperty('--tex-carpet', 'url(' + carpet() + ')');
     } catch (e) { /* 素材が作れなくても単色で表示できる */ }
   }
 

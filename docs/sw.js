@@ -1,5 +1,5 @@
 // Cards Table — オフラインでも遊べるようにするキャッシュ
-const CACHE = 'daifugo-25c1e534ec';
+const CACHE = 'daifugo-15c1940962';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
