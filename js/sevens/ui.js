@@ -491,7 +491,8 @@
       } else {
         setThinking(q.seat, true);
         const t0 = performance.now();
-        try { action = await AI.decide(S, q, P.level, S.rated ? 400 : Math.round(400 * UI.speed)); } catch (e) { console.error(e); action = SV.legalMoves(S, q.seat)[0]; }
+        // つよいAIは決まった回数だけ試す（端末の速さで強さが変わらないように）。3秒はとても遅い端末での上限
+        try { action = await AI.decide(S, q, P.level, 3000); } catch (e) { console.error(e); action = SV.legalMoves(S, q.seat)[0]; }
         const wait = thinkTime(q) - (performance.now() - t0);
         if (wait > 0) await sleep(wait);
         setThinking(q.seat, false);
@@ -539,8 +540,8 @@
       SND.play('turn');
       renderAll();
       const info = $('sv-info');
-      $('sv-pass').textContent = limit ? 'パス（残り' + Math.max(0, limit - P.passes) + '）' : 'パス';
-      if (limit && P.passes >= limit) $('sv-pass').textContent = 'パス（失格）';
+      // 「出す」が2段目に落ちないように、残りの回数は小さく添える
+      $('sv-pass').innerHTML = 'パス' + (!limit ? '' : '<small class="sub">' + (P.passes >= limit ? '失格' : '残り' + (limit - P.passes)) + '</small>');
       $('sv-pass').disabled = !passOK;
       $('sv-hint').disabled = false;
       if (!moves.length && passOK && CM.settings.autoPass && !(limit && P.passes >= limit)) {

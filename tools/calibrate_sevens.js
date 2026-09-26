@@ -1,6 +1,8 @@
 /* 七並べのAIのレートを決めるための実測（Node で実行）
- *   node tools/calibrate_sevens.js <level> <games> [budgetMs]
- * 挑戦者（level）1体 vs ふつう3体で、標準ルールのゲームを繰り返し、挑戦者の1ゲーム平均得点から「ふつう（1500）との差」を出す。 */
+ *   node tools/calibrate_sevens.js <level> <games> [maxMs]
+ * 挑戦者（level）1体 vs ふつう3体で、標準ルールのゲームを繰り返し、挑戦者の1ゲーム平均得点から「ふつう（1500）との差」を出す。
+ * つよいAIは決まった回数（SevensAI.ITERS）だけ試すので、maxMs は時間の上限（ふつうは大きいままでよい）。
+ * 1ゲーム数秒かかるので、数十ゲームずつ並列に何本も動かして合計する。 */
 'use strict';
 const path = require('path');
 for (const f of ['cards', 'rules', 'engine', 'rating', 'sevens/engine', 'sevens/ai']) require(path.join(__dirname, '..', 'js', f + '.js'));
@@ -8,7 +10,7 @@ const D = globalThis.DFG, SV = D.Sevens, AI = D.SevensAI, RT = D.Rating;
 
 const level = process.argv[2] || 'easy';
 const games = +(process.argv[3] || 400);
-const budget = +(process.argv[4] || 400);
+const budget = +(process.argv[4] || 30000);
 
 (async function () {
   let sum = 0, sq = 0;

@@ -123,17 +123,46 @@
         D.SpeedHost.schedule(S, now, levelOfSeats(room));
         return ev;
       },
-      delay(room, now) { return D.SpeedHost.nextDelay(room.S, now); },
+      delay(room, now) {
+        const d = D.SpeedHost.nextDelay(room.S, now);
+        const away = speedAway(room);
+        if (!away) return d;
+        const f = Math.max(0, away.at - now);
+        return d == null ? f : Math.min(d, f);
+      },
       tick(room, now) {
+        // 通信が切れて30秒たった人は、そのゲームの負け
+        const away = speedAway(room);
+        if (away && away.at <= now) {
+          const ev = D.Speed.forfeit(room.S, away.seat);
+          D.SpeedHost.schedule(room.S, now, levelOfSeats(room));
+          return ev;
+        }
         const r = D.SpeedHost.tick(room.S, now, levelOfSeats(room));
         return r ? r.events : null;
       },
       view(S, seat, events) { return { state: D.Speed.publicView(S), events, request: null }; },
     },
   };
-  // スピードは人の席にAIが代わりに入らない（切断中はそのまま）
+  // スピードは人の席にAIが代わりに入らない。通信が切れて AWAY_FORFEIT たったら、その人のゲームの負け（ユーザーが決めた）
   function levelOfSeats(room) {
     return (seat) => { const s = room && room.seats[seat]; return s && s.type === 'ai' ? s.level : null; };
+  }
+  const AWAY_FORFEIT = 30000;
+  /** ゲーム中に通信が切れている人の席と、負けになる時刻（相手が人でつながっているときだけ。いなければ null） */
+  function speedAway(room) {
+    const S = room.S;
+    if (!S || (S.phase !== 'play' && S.phase !== 'stuck')) return null;
+    let out = null;
+    room.seats.forEach((st, seat) => {
+      const m = st.type === 'human' ? room.member(st.cid) : null;
+      const other = room.seats[1 - seat];
+      const om = other && other.type === 'human' ? room.member(other.cid) : null;
+      if (!m || m.connected || !om || !om.connected) return;
+      const at = m.awaySince + AWAY_FORFEIT;
+      if (!out || at < out.at) out = { seat, at };
+    });
+    return out;
   }
 
   function engineOf(game) {
@@ -480,7 +509,7 @@
 
   D.RoomCore = RoomCore;
   D.Online = {
-    ROBOT_NAMES, AWAY_GRACE, ADAPTERS, cleanName, cleanChat, CHAT_MAX, CHAT_KEEP,
+    ROBOT_NAMES, AWAY_GRACE, AWAY_FORFEIT, ADAPTERS, cleanName, cleanChat, CHAT_MAX, CHAT_KEEP,
     sanitize: sanitizeDaifugo, filterEvents: (evs, seat) => evs.map((ev) => ADAPTERS.daifugo.filterEvent(ev, seat)),
   };
 })();

@@ -17,13 +17,14 @@
   /**
    * ゲームごとのレート戦の決まり。AIのレートは強さごとに固定（ふつう=1500 を基準に実測）
    *   大富豪 2026-09-26：やさしい vs ふつう×3 を4000ゲーム → −191、つよい（420ms）vs ふつう×3 を400ゲーム → +130
-   *   七並べ 2026-09-26：やさしい vs ふつう×3 を6000ゲーム → −71、つよい（400ms）vs ふつう×3 を400ゲーム → +48（運の要素が大きい）
+   *   七並べ 2026-09-26：やさしい vs ふつう×3 を6000ゲーム → −71、つよい（候補を同じ配り方で比べる・300回）vs ふつう×3 を560ゲーム → +91
+   *     （以前の、時間で試すつよいは +48。運の要素が大きいゲームなので差は小さめ）
    *   スピード 2026-09-26：AI同士1000試合ずつ。やさしい→ふつう +254、ふつう→つよい +345
    */
   const CFG = {
     daifugo: { label: '大富豪', kind: 'points', games: 10, players: 4, ai: { easy: 1310, normal: 1500, hard: 1630 },
       rules: () => Object.assign({}, D.Rules.MINE), rulesLabel: 'マイルール' },
-    sevens: { label: '七並べ', kind: 'points', games: 10, players: 4, ai: { easy: 1430, normal: 1500, hard: 1550 },
+    sevens: { label: '七並べ', kind: 'points', games: 10, players: 4, ai: { easy: 1430, normal: 1500, hard: 1590 },
       rules: () => Object.assign({}, D.SevensRules.STANDARD), rulesLabel: '標準ルール（パス3回・ジョーカー・トンネル）' },
     speed: { label: 'スピード', kind: 'winloss', games: 3, players: 2, ai: { easy: 1250, normal: 1500, hard: 1850 },
       rules: () => Object.assign({}, D.SpeedRules.STANDARD), rulesLabel: '標準ルール（AとKがつながる・同じ数字も出せる）' },

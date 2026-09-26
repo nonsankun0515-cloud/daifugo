@@ -264,5 +264,34 @@
     ok(v.state.players.every((P) => P.deck.length === 0 && P.deckCount >= 0), '山札の中身は送らない');
   });
 
+  test('オンラインスピード：通信が30秒切れた人はそのゲームの負け', () => {
+    const r = new D.RoomCore('SPDAW');
+    r.join('host_00000001', 'ホスト', T0, null, 'speed');
+    r.join('guest_00000001', 'ゲスト', T0, null, 'speed');
+    ok(r.start('host_00000001', {}, T0).ok, '開始');
+    let now = T0;
+    // せーのでゲームが動き出すまで進める
+    while (r.S.phase === 'stuck') { now += r.nextAiDelay(now); r.aiStep(now); }
+    r.disconnect('guest_00000001', now);
+    const d = r.nextAiDelay(now);
+    ok(d != null && d <= D.Online.AWAY_FORFEIT, '切れた人の負けの時刻に起きる予定');
+    // 20秒で戻ってきたら続く
+    r.join('guest_00000001', 'ゲスト', now + 20000, null, 'speed');
+    ok(!r.aiStep(now + 31000) || r.S.endReason !== 'away', '30秒以内に戻れば負けにならない');
+    // もう一度切れて30秒たったら負け
+    const t1 = now + 40000;
+    if (r.S.phase === 'over') r.next('host_00000001', t1);
+    while (r.S.phase === 'stuck') r.aiStep(t1 + 5000);
+    r.disconnect('guest_00000001', t1);
+    ok(!r.aiStep(t1 + 29000) || r.S.endReason !== 'away', '29秒ではまだ');
+    ok(r.aiStep(t1 + 30000), '30秒で進む');
+    eq([r.S.phase, r.S.winner, r.S.endReason], ['over', 0, 'away'], 'つながっている人の勝ち');
+    // 2人とも切れているときは決着しない
+    r.next('host_00000001', t1 + 31000);
+    r.disconnect('host_00000001', t1 + 31000);
+    for (let k = 1; k <= 5; k++) r.aiStep(t1 + 31000 + k * 60000);
+    ok(r.S.phase !== 'over', '2人とも切れていたら決着しない');
+  });
+
   globalThis.GAMES_TEST_DONE = { pass: lines.filter((l) => l.ok).length, total: lines.length, failed: lines.filter((l) => !l.ok).map((l) => l.name + ': ' + l.msgs.join(' | ')) };
 })();

@@ -127,7 +127,7 @@
     const about = document.createElement('section');
     about.className = 'me-about';
     about.innerHTML = '<p>iPhone では Safari の共有ボタンから「ホーム画面に追加」すると、アプリのように全画面で遊べます。</p>' +
-      '<p class="muted">トランプ 大富豪・七並べ・スピード</p>';
+      '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
     wrap.appendChild(about);
   }
 

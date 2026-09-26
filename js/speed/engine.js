@@ -56,6 +56,7 @@
       phase: 'idle',
       stuckReason: null,
       winner: null,
+      endReason: null,
       moves: 0,
       rng: opt.seed != null ? C.mulberry32(opt.seed) : Math.random,
       events: [],
@@ -74,6 +75,7 @@
     S.gameNo++;
     S.piles = [[], []];
     S.winner = null;
+    S.endReason = null;
     S.moves = 0;
     S.players.forEach((P, i) => {
       let deck;
@@ -108,16 +110,29 @@
   function checkWin(S) {
     const empty = S.players.filter((P) => cardsLeft(P) === 0);
     if (!empty.length) return false;
+    endGame(S, empty.length === 1 ? empty[0].seat : null, null); // 同時になくなったら引き分け
+    return true;
+  }
+
+  /** ゲームを終える。reason：'away'（相手の通信切れ）など。ふつうに出しきったときは null */
+  function endGame(S, winner, reason) {
     S.phase = 'over';
-    const winner = empty.length === 1 ? empty[0].seat : null; // 同時になくなったら引き分け
     S.winner = winner;
+    S.endReason = reason;
     const pts = [0, 0];
     if (winner !== null) { S.players[winner].wins++; S.players[winner].score = S.players[winner].wins; pts[winner] = 1; }
     S.history.push({ winner, pts });
     const need = winsNeeded(S);
     S.matchOver = S.players.some((P) => P.wins >= need);
-    emit(S, { t: 'over', winner, wins: S.players.map((P) => P.wins), matchOver: S.matchOver });
-    return true;
+    emit(S, { t: 'over', winner, wins: S.players.map((P) => P.wins), matchOver: S.matchOver, reason });
+  }
+
+  /** 通信が切れたまま戻らない人（seat）の負けにする（オンライン） */
+  function forfeit(S, seat) {
+    S.events = [];
+    if (S.phase !== 'play' && S.phase !== 'stuck') throw new Error('今はできません');
+    endGame(S, 1 - seat, 'away');
+    return S.events;
   }
 
   function afterChange(S) {
@@ -214,6 +229,6 @@
 
   D.Speed = {
     FIELD, COLORS, numOf, numLabel, cardName, canStack, topOf, winsNeeded, cardsLeft, deckCount,
-    createMatch, startGame, play, flip, playable, anyPlayable, clone, serialize, deserialize, publicView, standings,
+    createMatch, startGame, play, flip, forfeit, playable, anyPlayable, clone, serialize, deserialize, publicView, standings,
   };
 })();

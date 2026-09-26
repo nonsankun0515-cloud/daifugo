@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="大富豪">
-<title>大富豪</title>
+<meta name="apple-mobile-web-app-title" content="Cards Table">
+<title>Cards Table</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -112,6 +112,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .btn-ghost:hover:not(:disabled) { border-color: var(--gold); }
 .btn-lg { font-size: 18px; padding: 16px 30px; min-width: 220px; }
 .btn-sm { font-size: 13px; padding: 9px 14px; }
+.btn .sub { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; opacity: 0.75; margin-left: -3px; }
 .icon-btn {
   width: 40px; height: 40px;
   display: grid; place-items: center;
@@ -223,65 +224,6 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 }
 .felt-print { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
 .felt-print svg { position: absolute; left: 0; top: 0; overflow: visible; }
-
-/* ───────── タイトル ───────── */
-.title {
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding:
-    calc(var(--tbl-top) + var(--rail) + env(safe-area-inset-top, 0px))
-    calc(var(--tbl-x) + var(--rail))
-    calc(var(--tbl-bottom) + var(--rail) + env(safe-area-inset-bottom, 0px));
-}
-.title-inner {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  padding-inline: 16px;
-  text-align: center;
-  width: 100%;
-}
-.title-fan { position: relative; width: 300px; max-width: 100%; height: 150px; margin-bottom: -8px; }
-.title-fan .card { position: absolute; left: 50%; bottom: 0; width: 88px; height: 123px; transform-origin: 50% 110%; }
-.logo { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.logo-kanji {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(64px, 16vw, 132px);
-  line-height: 1;
-  letter-spacing: 0.12em;
-  padding-left: 0.12em;
-  background: linear-gradient(180deg, #fff4c9 0%, #efcf7c 38%, #b88a2c 72%, #f0d58a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 3px 0 rgba(60, 38, 4, 0.75)) drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
-}
-.logo-sub {
-  font-family: var(--font-num);
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.7em;
-  padding-left: 0.7em;
-  color: var(--gold);
-}
-.title-rule {
-  margin: 0;
-  font-size: 14px;
-  color: var(--ivory-dim);
-  background: rgba(6, 16, 11, 0.55);
-  border: 1px solid var(--lacquer-line);
-  border-radius: 999px;
-  padding: 7px 14px;
-  max-width: 100%;
-}
-.title-rule b { color: var(--gold-light); font-weight: 700; }
-.title-actions { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 4px; }
-.title-foot { margin: 6px 0 0; font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
 
 /* ───────── ルールと設定 ───────── */
 .rules { display: flex; flex-direction: column; background: linear-gradient(180deg, #17130f, #0e0b09); }
@@ -1000,11 +942,6 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 .lvl-exp b { font-family: var(--font-num); font-size: 21px; color: var(--gold-light); }
 .opt .lvl-exp small { font-size: 10.5px; margin: 0; }
 .menu-note { font-size: 12px !important; margin: 12px 0 0 !important; }
-.title-rating { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 10px; margin: 0; font-size: 12px; color: var(--ivory-dim); letter-spacing: 0.06em; }
-.title-rating .lbl { font-weight: 700; color: var(--gold); letter-spacing: 0.14em; }
-.title-rating b { font-family: var(--font-num); font-size: 24px; font-weight: 900; color: var(--gold-light); line-height: 1; }
-.title-rating .sub { font-size: 11px; color: var(--muted); }
-.title-minor { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 /* ───────── アプリの外枠：ホーム・下のナビ・マイページ ───────── */
 .home { background: #0b0806; }
@@ -1046,8 +983,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
   background: radial-gradient(60% 50% at 50% 30%, rgba(255, 238, 196, 0.16), rgba(255, 238, 196, 0) 70%);
 }
 .hero-art { position: relative; height: 138px; margin-bottom: 4px; }
-.hero-fan, .hero .title-fan { position: absolute; left: 0; right: 0; bottom: 0; width: auto; height: 100%; margin: 0; }
-.hero-fan .card, .hero .title-fan .card {
+.hero-fan { position: absolute; left: 0; right: 0; bottom: 0; width: auto; height: 100%; margin: 0; }
+.hero-fan .card {
   position: absolute; left: 50%; bottom: 0;
   width: 80px; height: 112px;
   transform-origin: 50% 115%;
@@ -1185,7 +1122,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
 
 @media (min-width: 900px) {
   .hero-art { height: 160px; }
-  .hero-fan .card, .hero .title-fan .card { width: 92px; height: 129px; }
+  .hero-fan .card { width: 92px; height: 129px; }
 }
 @media (max-height: 640px) and (orientation: landscape) {
   .hero-art { display: none; }
@@ -1311,13 +1248,13 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   color: var(--gold-light); font: 700 13px var(--font-num);
 }
 .spd-center { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: clamp(22px, 9vw, 80px); }
-.spd-pile { position: relative; width: var(--pw2, 78px); height: calc(var(--pw2, 78px) * 1.4); flex: none; }
+.spd-pile { position: relative; isolation: isolate; width: var(--pw2, 78px); height: calc(var(--pw2, 78px) * 1.4); flex: none; }
 .spd-pile-base { position: absolute; inset: -7px; border-radius: 13px; background: rgba(0, 0, 0, 0.14); box-shadow: inset 0 0 0 1.5px rgba(228, 188, 98, 0.35); transition: box-shadow 0.15s; }
 .spd-pile.over .spd-pile-base { box-shadow: inset 0 0 0 2.5px #f3dd9b, 0 0 22px rgba(233, 196, 106, 0.65); }
 .spd-call {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 5;
+  z-index: 10;
   pointer-events: none;
   opacity: 0;
   white-space: nowrap;
@@ -1506,13 +1443,8 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   .actions .btn { min-width: 84px; padding: 12px 16px; }
   #b-play { min-width: 112px; }
   .btn-lg { min-width: 200px; }
-  .title-fan { height: 124px; }
-  .title-fan .card { width: 72px; height: 101px; }
   .res-row { grid-template-columns: 26px 58px 1fr auto; gap: 8px; }
   .res-row.fin { grid-template-columns: 26px 1fr auto; }
-}
-@media (max-height: 640px) {
-  .title-fan { display: none; }
 }
 /* 縦長のスマホ：場のカードを大きく */
 @media (max-aspect-ratio: 3/5) {
@@ -1541,7 +1473,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     <div class="home-scroll" id="home-scroll">
       <div class="home-view" id="home-daifugo" data-tab="daifugo">
         <header class="hero">
-          <div class="hero-art"><div class="title-fan hero-fan" id="title-fan"></div></div>
+          <div class="hero-art"><div class="hero-fan" id="title-fan"></div></div>
           <h1 class="hero-title"><span class="kanji">大富豪</span><span class="en">DAIFUGŌ</span></h1>
           <p class="hero-tag">ローカルルールを1つずつ選べる、本格大富豪</p>
         </header>
@@ -3163,13 +3095,14 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   /**
    * ゲームごとのレート戦の決まり。AIのレートは強さごとに固定（ふつう=1500 を基準に実測）
    *   大富豪 2026-09-26：やさしい vs ふつう×3 を4000ゲーム → −191、つよい（420ms）vs ふつう×3 を400ゲーム → +130
-   *   七並べ 2026-09-26：やさしい vs ふつう×3 を6000ゲーム → −71、つよい（400ms）vs ふつう×3 を400ゲーム → +48（運の要素が大きい）
+   *   七並べ 2026-09-26：やさしい vs ふつう×3 を6000ゲーム → −71、つよい（候補を同じ配り方で比べる・300回）vs ふつう×3 を560ゲーム → +91
+   *     （以前の、時間で試すつよいは +48。運の要素が大きいゲームなので差は小さめ）
    *   スピード 2026-09-26：AI同士1000試合ずつ。やさしい→ふつう +254、ふつう→つよい +345
    */
   const CFG = {
     daifugo: { label: '大富豪', kind: 'points', games: 10, players: 4, ai: { easy: 1310, normal: 1500, hard: 1630 },
       rules: () => Object.assign({}, D.Rules.MINE), rulesLabel: 'マイルール' },
-    sevens: { label: '七並べ', kind: 'points', games: 10, players: 4, ai: { easy: 1430, normal: 1500, hard: 1550 },
+    sevens: { label: '七並べ', kind: 'points', games: 10, players: 4, ai: { easy: 1430, normal: 1500, hard: 1590 },
       rules: () => Object.assign({}, D.SevensRules.STANDARD), rulesLabel: '標準ルール（パス3回・ジョーカー・トンネル）' },
     speed: { label: 'スピード', kind: 'winloss', games: 3, players: 2, ai: { easy: 1250, normal: 1500, hard: 1850 },
       rules: () => Object.assign({}, D.SpeedRules.STANDARD), rulesLabel: '標準ルール（AとKがつながる・同じ数字も出せる）' },
@@ -4182,34 +4115,30 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   const D = globalThis.DFG;
   const C = D.Cards, SV = D.Sevens;
 
-  /** (s, n) から dir 方向に続く空きマス（トンネルなら一周）。自分のカードとそれ以外に分けて距離つきで返す */
-  function chain(S, s, n, dir, own) {
-    const out = [];
-    let m = n;
-    for (let k = 1; k <= 12; k++) {
-      m += dir;
-      if (m < 1 || m > 13) {
-        if (!S.rules.tunnel) break;
-        m = m < 1 ? 13 : 1;
-      }
-      if (S.board[s][m]) break;
-      out.push({ k, mine: own.has(SV.idOf(s, m)) });
-    }
-    return out;
-  }
+  // マスのカード名（毎回文字列を作らないように先に作っておく）
+  const IDS = {};
+  for (const s of SV.SUITS) { IDS[s] = []; for (let n = 1; n <= 13; n++) IDS[s][n] = SV.idOf(s, n); }
 
   /**
-   * (s, n) を埋めたときに開く方向の価値。
+   * (s, n) を埋めたときに開く方向の価値。となりから空きマスをたどり（トンネルなら一周）、
    * 自分のカードが先にあるほど良い。ほかの人のカードが開くのは悪いが、
    * 自分の次のカードより先は、まだ自分が止めているので数えない。
+   * （つよいAIが何百回も呼ぶので、配列を作らずに数える）
    */
   function openValue(S, s, n, own) {
+    const row = S.board[s], ids = IDS[s], tunnel = S.rules.tunnel;
     let v = 0;
-    for (const dir of [-1, 1]) {
-      let blocked = false;
-      for (const x of chain(S, s, n, dir, own)) {
-        if (x.mine) { v += W.own / Math.pow(x.k, W.ownPow); blocked = true; }
-        else if (!blocked) v -= W.other / Math.pow(x.k, W.otherPow);
+    for (let dir = -1; dir <= 1; dir += 2) {
+      let blocked = false, m = n;
+      for (let k = 1; k <= 12; k++) {
+        m += dir;
+        if (m < 1 || m > 13) {
+          if (!tunnel) break;
+          m = m < 1 ? 13 : 1;
+        }
+        if (row[m]) break;
+        if (own.has(ids[m])) { v += W.own / Math.pow(k, W.ownPow); blocked = true; }
+        else if (!blocked) v -= W.other / Math.pow(k, W.otherPow);
       }
     }
     return v;
@@ -4217,31 +4146,31 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   // 重み（tools で自己対戦させて調整）
   const W = { own: 1.0, ownPow: 0.6, other: 0.8, otherPow: 0.35, passBase: 0.75, passLeft: 1.0, jokerKeep: 0.8 };
 
-  function scoreMove(S, seat, a) {
+  /** own：自分の手札の Set（同じ番の手を何通りも比べるときは使い回す。出すカード自身はたどるマスに出てこない） */
+  function scoreMove(S, seat, a, own) {
     const P = S.players[seat];
-    const own = new Set(P.hand);
     if (a.type === 'pass') {
       const limit = S.rules.passLimit;
       if (limit > 0 && P.passes >= limit) return -1000; // 次のパスで失格
       const left = limit > 0 ? limit - P.passes : 3;
       return -W.passBase - W.passLeft / Math.max(1, left) - 0.08 * P.hand.length;
     }
+    if (P.hand.length === 1) return 1000;
+    own = own || new Set(P.hand);
     if (a.type === 'joker') {
-      if (P.hand.length === 1) return 1000;
-      own.delete('X1');
       // ジョーカーは手元にあるほど強いので、使うのは自分の札がたくさん開くときだけ
       return openValue(S, a.suit, a.n, own) + 0.4 - W.jokerKeep + (P.hand.length <= 3 ? 0.8 : 0);
     }
-    if (P.hand.length === 1) return 1000;
-    own.delete(a.card);
     return openValue(S, C.suitOf(a.card), SV.numOf(a.card), own) + 0.15;
   }
 
-  function chooseHeuristic(S, seat, noise) {
+  function chooseHeuristic(S, seat, noise, rng) {
     const moves = SV.legalMoves(S, seat);
+    const own = new Set(S.players[seat].hand);
+    const r = rng || Math.random;
     let best = null, bestV = -Infinity;
     for (const a of moves) {
-      const v = scoreMove(S, seat, a) + (noise ? (Math.random() - 0.5) * noise : 0);
+      const v = scoreMove(S, seat, a, own) + (noise ? (r() - 0.5) * noise : 0);
       if (v > bestV) { bestV = v; best = a; }
     }
     return best;
@@ -4275,9 +4204,9 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     }
   }
 
-  function rollout(T, seat) {
+  function rollout(T, seat, rng) {
     let q, guard = 0;
-    while ((q = SV.getRequest(T)) && guard++ < 400) SV.apply(T, chooseHeuristic(T, q.seat, 0.6));
+    while ((q = SV.getRequest(T)) && guard++ < 400) SV.apply(T, chooseHeuristic(T, q.seat, 0.6, rng));
     if (T.phase !== 'over') return 0;
     return D.Engine.pointsFor(T.n, T.prevRanking.indexOf(seat));
   }
@@ -4297,29 +4226,37 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     return yieldImpl();
   }
 
-  async function chooseMC(S, seat, budgetMs) {
+  /**
+   * 候補の手を、同じ「見えないカードの配り方」と同じ乱数で比べる（手ごとに別の配り方で試すと、
+   * 配り方の運の差が手の差より大きくなり、良い手を見分けられない）。パスは作戦なので必ず候補に入れる。
+   * 試す回数は ITERS で決まっている（時間で決めると、遅い端末ほど弱くなりレートが合わなくなる）。
+   * maxMs はとても遅い端末で待たせすぎないための上限。
+   */
+  const ITERS = 300;
+  async function chooseMC(S, seat, maxMs) {
     const moves = SV.legalMoves(S, seat);
     if (moves.length <= 1) return moves[0];
     const ranked = moves.map((a) => ({ a, s: scoreMove(S, seat, a) })).sort((x, y) => y.s - x.s);
     if (ranked[0].s >= 1000) return ranked[0].a;
-    const cands = ranked.slice(0, 5);
-    const stats = cands.map(() => ({ sum: 0, n: 0 }));
+    const cands = ranked.slice(0, 6);
+    const pass = ranked.find((x) => x.a.type === 'pass');
+    if (pass && !cands.includes(pass)) cands[cands.length - 1] = pass;
+    const sum = cands.map(() => 0);
     const t0 = now();
     let it = 0;
-    while (now() - t0 < budgetMs && it < 1200) {
-      const ci = it % cands.length;
-      const T = SV.clone(S);
-      determinize(T, seat);
-      try { SV.apply(T, cands[ci].a); stats[ci].sum += rollout(T, seat); } catch (e) { stats[ci].sum -= 3; }
-      stats[ci].n++;
+    while (it < ITERS && now() - t0 < maxMs) {
+      const base = SV.clone(S);
+      determinize(base, seat);
+      const seed = (Math.random() * 4294967296) >>> 0;
+      cands.forEach((c, i) => {
+        const T = SV.clone(base);
+        try { SV.apply(T, c.a); sum[i] += rollout(T, seat, C.mulberry32(seed)); } catch (e) { sum[i] -= 3; }
+      });
       it++;
-      if (it % 6 === 0) await yieldUI();
+      if (it % 2 === 0) await yieldUI();
     }
-    let best = 0, bestV = -Infinity;
-    cands.forEach((c, i) => {
-      const v = (stats[i].n ? stats[i].sum / stats[i].n : -9) + (i === 0 ? 0.05 : 0);
-      if (v > bestV) { bestV = v; best = i; }
-    });
+    let best = 0;
+    cands.forEach((c, i) => { if (sum[i] > sum[best]) best = i; }); // 同点なら評価関数の順
     return cands[best].a;
   }
 
@@ -4333,15 +4270,15 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     return chooseHeuristic(S, seat, 0.15);
   }
 
-  async function decide(S, q, level, budgetMs) {
-    if (level === 'hard') return chooseMC(S, q.seat, budgetMs || 400);
+  async function decide(S, q, level, maxMs) {
+    if (level === 'hard') return chooseMC(S, q.seat, maxMs || 3000);
     return decideSync(S, q, level);
   }
 
   /** 人間向けヒント（ふつうのAIの考え） */
   function suggest(S, seat) { return chooseHeuristic(S, seat, 0); }
 
-  D.SevensAI = { decide, decideSync, suggest, scoreMove, W };
+  D.SevensAI = { decide, decideSync, suggest, scoreMove, W, ITERS };
 })();
 
 </script>
@@ -4404,6 +4341,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
       phase: 'idle',
       stuckReason: null,
       winner: null,
+      endReason: null,
       moves: 0,
       rng: opt.seed != null ? C.mulberry32(opt.seed) : Math.random,
       events: [],
@@ -4422,6 +4360,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     S.gameNo++;
     S.piles = [[], []];
     S.winner = null;
+    S.endReason = null;
     S.moves = 0;
     S.players.forEach((P, i) => {
       let deck;
@@ -4456,16 +4395,29 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   function checkWin(S) {
     const empty = S.players.filter((P) => cardsLeft(P) === 0);
     if (!empty.length) return false;
+    endGame(S, empty.length === 1 ? empty[0].seat : null, null); // 同時になくなったら引き分け
+    return true;
+  }
+
+  /** ゲームを終える。reason：'away'（相手の通信切れ）など。ふつうに出しきったときは null */
+  function endGame(S, winner, reason) {
     S.phase = 'over';
-    const winner = empty.length === 1 ? empty[0].seat : null; // 同時になくなったら引き分け
     S.winner = winner;
+    S.endReason = reason;
     const pts = [0, 0];
     if (winner !== null) { S.players[winner].wins++; S.players[winner].score = S.players[winner].wins; pts[winner] = 1; }
     S.history.push({ winner, pts });
     const need = winsNeeded(S);
     S.matchOver = S.players.some((P) => P.wins >= need);
-    emit(S, { t: 'over', winner, wins: S.players.map((P) => P.wins), matchOver: S.matchOver });
-    return true;
+    emit(S, { t: 'over', winner, wins: S.players.map((P) => P.wins), matchOver: S.matchOver, reason });
+  }
+
+  /** 通信が切れたまま戻らない人（seat）の負けにする（オンライン） */
+  function forfeit(S, seat) {
+    S.events = [];
+    if (S.phase !== 'play' && S.phase !== 'stuck') throw new Error('今はできません');
+    endGame(S, 1 - seat, 'away');
+    return S.events;
   }
 
   function afterChange(S) {
@@ -4562,7 +4514,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
 
   D.Speed = {
     FIELD, COLORS, numOf, numLabel, cardName, canStack, topOf, winsNeeded, cardsLeft, deckCount,
-    createMatch, startGame, play, flip, playable, anyPlayable, clone, serialize, deserialize, publicView, standings,
+    createMatch, startGame, play, flip, forfeit, playable, anyPlayable, clone, serialize, deserialize, publicView, standings,
   };
 })();
 
@@ -5369,7 +5321,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   function renderFeltPrint(w, h, cy, pw, ph, narrow) {
     const host = $('felt-print');
     const S = UI.S;
-    if (!host || !S) return;
+    if (!host || !S || w < 60 || h < 60) return; // 卓が隠れていて大きさが0のときは描かない（楕円の半径が負になる）
     const key = [w, h, cy, pw, narrow, RULE_KEYS.map((k) => S.rules[k]).join('')].map((v) => (typeof v === 'number' ? Math.round(v) : v)).join('|');
     if (key === printKey) return;
     printKey = key;
@@ -5382,7 +5334,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
       '<defs><linearGradient id="dfg-foil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e4a6"/><stop offset="1" stop-color="#b78a30"/></linearGradient></defs>';
     // 二重の楕円
     s += '<ellipse cx="' + f(cx) + '" cy="' + f(cy) + '" rx="' + f(rx) + '" ry="' + f(ry) + '" fill="none" stroke="rgba(228,188,98,.34)" stroke-width="1.6"/>';
-    s += '<ellipse cx="' + f(cx) + '" cy="' + f(cy) + '" rx="' + f(rx - 7) + '" ry="' + f(ry - 7) + '" fill="none" stroke="rgba(228,188,98,.17)" stroke-width="1"/>';
+    s += '<ellipse cx="' + f(cx) + '" cy="' + f(cy) + '" rx="' + f(Math.max(0, rx - 7)) + '" ry="' + f(Math.max(0, ry - 7)) + '" fill="none" stroke="rgba(228,188,98,.17)" stroke-width="1"/>';
     // カード置き場
     const sw = pw * 1.14, sh = ph * 1.1;
     s += '<rect x="' + f(cx - sw / 2) + '" y="' + f(cy - sh / 2) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="' + f(pw * 0.1) + '" fill="rgba(0,0,0,.1)" stroke="rgba(228,188,98,.38)" stroke-width="1.3"/>';
@@ -6692,6 +6644,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
         '<li>レートは1500から。相手とのレート差から「あなたが勝つ確率」を出し、試合に勝てば上がり、負ければ下がります。</li>' +
         '<li>増減 ＝ ' + RT.K_WIN + ' ×（勝ち=1／負け=0 − 勝つ確率）。同じレートの相手に勝つと +' + RT.K_WIN / 2 + '。はじめの' + RT.NEW_MATCHES + '試合は ' + RT.K_WIN_NEW + ' で計算します。</li>' +
         '<li>途中で棄権すると負けになります。</li></ul>') +
+      sect('オンライン対戦で通信が切れたら', '<p>ゲームの途中で通信が<b>30秒以上</b>切れたままだと、そのゲームは<b>切れた人の負け</b>になります（相手の人がつながっているとき）。30秒以内に戻れば、そのまま続きから遊べます。</p>') +
       sect('AIのレート', '<table class="bk-table"><tr><td>やさしい</td><td>' + c.ai.easy + '</td></tr><tr><td>ふつう</td><td>' + c.ai.normal + '</td></tr><tr><td>つよい</td><td>' + c.ai.hard + '</td></tr></table>' +
         '<p>AIどうしを何千試合も対戦させて測った強さです。スピードは反応の速さの差がそのまま出るので、AIの強さの差は大きめです。</p>');
   }
@@ -7726,7 +7679,7 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     const about = document.createElement('section');
     about.className = 'me-about';
     about.innerHTML = '<p>iPhone では Safari の共有ボタンから「ホーム画面に追加」すると、アプリのように全画面で遊べます。</p>' +
-      '<p class="muted">トランプ 大富豪・七並べ・スピード</p>';
+      '<p class="muted">Cards Table — 大富豪・七並べ・スピード</p>';
     wrap.appendChild(about);
   }
 
@@ -9189,7 +9142,8 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
       } else {
         setThinking(q.seat, true);
         const t0 = performance.now();
-        try { action = await AI.decide(S, q, P.level, S.rated ? 400 : Math.round(400 * UI.speed)); } catch (e) { console.error(e); action = SV.legalMoves(S, q.seat)[0]; }
+        // つよいAIは決まった回数だけ試す（端末の速さで強さが変わらないように）。3秒はとても遅い端末での上限
+        try { action = await AI.decide(S, q, P.level, 3000); } catch (e) { console.error(e); action = SV.legalMoves(S, q.seat)[0]; }
         const wait = thinkTime(q) - (performance.now() - t0);
         if (wait > 0) await sleep(wait);
         setThinking(q.seat, false);
@@ -9237,8 +9191,8 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
       SND.play('turn');
       renderAll();
       const info = $('sv-info');
-      $('sv-pass').textContent = limit ? 'パス（残り' + Math.max(0, limit - P.passes) + '）' : 'パス';
-      if (limit && P.passes >= limit) $('sv-pass').textContent = 'パス（失格）';
+      // 「出す」が2段目に落ちないように、残りの回数は小さく添える
+      $('sv-pass').innerHTML = 'パス' + (!limit ? '' : '<small class="sub">' + (P.passes >= limit ? '失格' : '残り' + (limit - P.passes)) + '</small>');
       $('sv-pass').disabled = !passOK;
       $('sv-hint').disabled = false;
       if (!moves.length && passOK && CM.settings.autoPass && !(limit && P.passes >= limit)) {
@@ -9700,12 +9654,17 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     if (r) { animate(r.events); after(); }
     loop();
   }
+  let persistedAt = 0;
   function after() {
     if (S.phase === 'over') {
       stopClock();
       if (S.matchOver && CM.applyRatedLocal(S)) { /* レートを更新 */ }
       persist();
       setTimeout(showResults, 900 * UI.speed);
+    } else if (now() - persistedAt > 2000) {
+      // ゲームの途中も時々保存する（アプリが急に落ちても、ほぼその場面から再開できる）
+      persistedAt = now();
+      persist();
     }
   }
 
@@ -9742,12 +9701,13 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     const info = seatInfo && seatInfo[opp()];
     const face = info && info.type === 'human' ? A.personSVG(opp()) : A.robotSVG(info ? info.robot : 0);
     if ($('spd-opp-ava').dataset.face !== (info && info.type === 'human' ? 'h' : 'r')) { $('spd-opp-ava').innerHTML = face; $('spd-opp-ava').dataset.face = info && info.type === 'human' ? 'h' : 'r'; }
-    $('spd-opp-name').textContent = op.name;
+    const away = !!(info && info.type === 'human' && !info.connected);
+    $('spd-opp-name').textContent = op.name + (away ? '（通信切れ）' : '');
     $('spd-my-name').textContent = me.name === 'あなた' ? 'あなた' : me.name;
     if (!$('spd-my-ava').innerHTML) $('spd-my-ava').innerHTML = A.humanSVG();
     $('spd-opp-wins').innerHTML = winsHTML(op.wins);
     $('spd-my-wins').innerHTML = winsHTML(me.wins);
-    $('spd-opp').classList.toggle('away', !!(info && info.type === 'human' && !info.connected));
+    $('spd-opp').classList.toggle('away', away);
     renderField(opp(), $('spd-opp-field'), false);
     renderField(human, $('spd-my-field'), true);
     renderDeck(op, $('spd-opp-deck'));
@@ -9799,10 +9759,12 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
     const p = S.piles[i];
     const k = p.length;
     let h = '<div class="spd-pile-base"></div>';
-    for (let j = Math.max(0, k - 3); j < k; j++) {
+    const from = Math.max(0, k - 3);
+    for (let j = from; j < k; j++) {
       const d = k - 1 - j;
       const rot = ((j * 37 + i * 11) % 9 - 4) * 1.6;
-      h += '<div class="card" style="transform:translate(' + (-d * 2) + 'px,' + (-d * 2) + 'px) rotate(' + rot + 'deg);z-index:' + (j + 1) + '">' + A.faceSVG(p[j]) + '</div>';
+      // 重ね順は見えている3枚の中だけで付ける（通し番号だと「せーの」の表示より上に来てしまう）
+      h += '<div class="card" style="transform:translate(' + (-d * 2) + 'px,' + (-d * 2) + 'px) rotate(' + rot + 'deg);z-index:' + (j - from + 1) + '">' + A.faceSVG(p[j]) + '</div>';
     }
     el.innerHTML = h;
   }
@@ -9946,7 +9908,8 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
       } else if (ev.t === 'over') {
         const win = ev.winner === human, draw = ev.winner === null;
         SND.play(win ? 'fanfare' : draw ? 'pass' : 'foul');
-        UI.banner(draw ? '引き分け' : win ? '勝ち！' : '負け…', draw ? 'small' : win ? '' : 'foul', ev.wins[human] + ' - ' + ev.wins[opp()], 1300);
+        const sub = ev.reason === 'away' ? (win ? '相手の通信が切れたため' : '通信が切れていたため') : ev.wins[human] + ' - ' + ev.wins[opp()];
+        UI.banner(draw ? '引き分け' : win ? '勝ち！' : '負け…', draw ? 'small' : win ? '' : 'foul', sub, 1300);
       }
     }
     render();
@@ -9964,7 +9927,8 @@ button.rt-row:hover { background: rgba(217, 178, 90, 0.06); }
   function gameResultHTML() {
     const w = S.winner;
     const me = S.players[human], op = S.players[opp()];
-    const msg = w === null ? '引き分け（このゲームは数えません）' : w === human ? 'あなたの勝ち！' : op.name + ' の勝ち';
+    let msg = w === null ? '引き分け（このゲームは数えません）' : w === human ? 'あなたの勝ち！' : op.name + ' の勝ち';
+    if (S.endReason === 'away') msg += w === human ? '（相手の通信が30秒以上切れたため）' : '（通信が30秒以上切れたため）';
     return '<h3>第' + S.gameNo + 'ゲーム 結果</h3><p>' + esc(msg) + '</p>' +
       '<div class="spd-score"><div><span>' + esc(me.name) + '</span><b>' + me.wins + '</b></div><em>-</em><div><b>' + op.wins + '</b><span>' + esc(op.name) + '</span></div></div>' +
       (S.maxGames > 1 ? '<p class="menu-note">' + gamesLabel(S.maxGames) + '：先に' + SP.winsNeeded(S) + '勝した方の勝ち</p>' : '');

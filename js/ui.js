@@ -144,7 +144,7 @@
   function renderFeltPrint(w, h, cy, pw, ph, narrow) {
     const host = $('felt-print');
     const S = UI.S;
-    if (!host || !S) return;
+    if (!host || !S || w < 60 || h < 60) return; // 卓が隠れていて大きさが0のときは描かない（楕円の半径が負になる）
     const key = [w, h, cy, pw, narrow, RULE_KEYS.map((k) => S.rules[k]).join('')].map((v) => (typeof v === 'number' ? Math.round(v) : v)).join('|');
     if (key === printKey) return;
     printKey = key;
@@ -157,7 +157,7 @@
       '<defs><linearGradient id="dfg-foil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e4a6"/><stop offset="1" stop-color="#b78a30"/></linearGradient></defs>';
     // 二重の楕円
     s += '<ellipse cx="' + f(cx) + '" cy="' + f(cy) + '" rx="' + f(rx) + '" ry="' + f(ry) + '" fill="none" stroke="rgba(228,188,98,.34)" stroke-width="1.6"/>';
-    s += '<ellipse cx="' + f(cx) + '" cy="' + f(cy) + '" rx="' + f(rx - 7) + '" ry="' + f(ry - 7) + '" fill="none" stroke="rgba(228,188,98,.17)" stroke-width="1"/>';
+    s += '<ellipse cx="' + f(cx) + '" cy="' + f(cy) + '" rx="' + f(Math.max(0, rx - 7)) + '" ry="' + f(Math.max(0, ry - 7)) + '" fill="none" stroke="rgba(228,188,98,.17)" stroke-width="1"/>';
     // カード置き場
     const sw = pw * 1.14, sh = ph * 1.1;
     s += '<rect x="' + f(cx - sw / 2) + '" y="' + f(cy - sh / 2) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="' + f(pw * 0.1) + '" fill="rgba(0,0,0,.1)" stroke="rgba(228,188,98,.38)" stroke-width="1.3"/>';

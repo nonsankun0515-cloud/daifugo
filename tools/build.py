@@ -54,9 +54,9 @@ def artifact(full):
 
 
 MANIFEST = {
-    "name": "大富豪",
-    "short_name": "大富豪",
-    "description": "ローカルルールを自由に選べる大富豪。AIロボットと対戦。",
+    "name": "Cards Table",
+    "short_name": "Cards Table",
+    "description": "大富豪・七並べ・スピード。AIロボットや友だちと対戦できるトランプゲーム。",
     "lang": "ja",
     "start_url": "./",
     "scope": "./",
@@ -71,7 +71,7 @@ MANIFEST = {
     ],
 }
 
-SW = """// 大富豪 — オフラインでも遊べるようにするキャッシュ
+SW = """// Cards Table — オフラインでも遊べるようにするキャッシュ
 const CACHE = 'daifugo-%s';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', (e) => {

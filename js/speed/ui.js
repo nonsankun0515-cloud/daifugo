@@ -165,12 +165,17 @@
     if (r) { animate(r.events); after(); }
     loop();
   }
+  let persistedAt = 0;
   function after() {
     if (S.phase === 'over') {
       stopClock();
       if (S.matchOver && CM.applyRatedLocal(S)) { /* レートを更新 */ }
       persist();
       setTimeout(showResults, 900 * UI.speed);
+    } else if (now() - persistedAt > 2000) {
+      // ゲームの途中も時々保存する（アプリが急に落ちても、ほぼその場面から再開できる）
+      persistedAt = now();
+      persist();
     }
   }
 
@@ -207,12 +212,13 @@
     const info = seatInfo && seatInfo[opp()];
     const face = info && info.type === 'human' ? A.personSVG(opp()) : A.robotSVG(info ? info.robot : 0);
     if ($('spd-opp-ava').dataset.face !== (info && info.type === 'human' ? 'h' : 'r')) { $('spd-opp-ava').innerHTML = face; $('spd-opp-ava').dataset.face = info && info.type === 'human' ? 'h' : 'r'; }
-    $('spd-opp-name').textContent = op.name;
+    const away = !!(info && info.type === 'human' && !info.connected);
+    $('spd-opp-name').textContent = op.name + (away ? '（通信切れ）' : '');
     $('spd-my-name').textContent = me.name === 'あなた' ? 'あなた' : me.name;
     if (!$('spd-my-ava').innerHTML) $('spd-my-ava').innerHTML = A.humanSVG();
     $('spd-opp-wins').innerHTML = winsHTML(op.wins);
     $('spd-my-wins').innerHTML = winsHTML(me.wins);
-    $('spd-opp').classList.toggle('away', !!(info && info.type === 'human' && !info.connected));
+    $('spd-opp').classList.toggle('away', away);
     renderField(opp(), $('spd-opp-field'), false);
     renderField(human, $('spd-my-field'), true);
     renderDeck(op, $('spd-opp-deck'));
@@ -264,10 +270,12 @@
     const p = S.piles[i];
     const k = p.length;
     let h = '<div class="spd-pile-base"></div>';
-    for (let j = Math.max(0, k - 3); j < k; j++) {
+    const from = Math.max(0, k - 3);
+    for (let j = from; j < k; j++) {
       const d = k - 1 - j;
       const rot = ((j * 37 + i * 11) % 9 - 4) * 1.6;
-      h += '<div class="card" style="transform:translate(' + (-d * 2) + 'px,' + (-d * 2) + 'px) rotate(' + rot + 'deg);z-index:' + (j + 1) + '">' + A.faceSVG(p[j]) + '</div>';
+      // 重ね順は見えている3枚の中だけで付ける（通し番号だと「せーの」の表示より上に来てしまう）
+      h += '<div class="card" style="transform:translate(' + (-d * 2) + 'px,' + (-d * 2) + 'px) rotate(' + rot + 'deg);z-index:' + (j - from + 1) + '">' + A.faceSVG(p[j]) + '</div>';
     }
     el.innerHTML = h;
   }
@@ -411,7 +419,8 @@
       } else if (ev.t === 'over') {
         const win = ev.winner === human, draw = ev.winner === null;
         SND.play(win ? 'fanfare' : draw ? 'pass' : 'foul');
-        UI.banner(draw ? '引き分け' : win ? '勝ち！' : '負け…', draw ? 'small' : win ? '' : 'foul', ev.wins[human] + ' - ' + ev.wins[opp()], 1300);
+        const sub = ev.reason === 'away' ? (win ? '相手の通信が切れたため' : '通信が切れていたため') : ev.wins[human] + ' - ' + ev.wins[opp()];
+        UI.banner(draw ? '引き分け' : win ? '勝ち！' : '負け…', draw ? 'small' : win ? '' : 'foul', sub, 1300);
       }
     }
     render();
@@ -429,7 +438,8 @@
   function gameResultHTML() {
     const w = S.winner;
     const me = S.players[human], op = S.players[opp()];
-    const msg = w === null ? '引き分け（このゲームは数えません）' : w === human ? 'あなたの勝ち！' : op.name + ' の勝ち';
+    let msg = w === null ? '引き分け（このゲームは数えません）' : w === human ? 'あなたの勝ち！' : op.name + ' の勝ち';
+    if (S.endReason === 'away') msg += w === human ? '（相手の通信が30秒以上切れたため）' : '（通信が30秒以上切れたため）';
     return '<h3>第' + S.gameNo + 'ゲーム 結果</h3><p>' + esc(msg) + '</p>' +
       '<div class="spd-score"><div><span>' + esc(me.name) + '</span><b>' + me.wins + '</b></div><em>-</em><div><b>' + op.wins + '</b><span>' + esc(op.name) + '</span></div></div>' +
       (S.maxGames > 1 ? '<p class="menu-note">' + gamesLabel(S.maxGames) + '：先に' + SP.winsNeeded(S) + '勝した方の勝ち</p>' : '');
