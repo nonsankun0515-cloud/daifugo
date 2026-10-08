@@ -8356,10 +8356,12 @@ a.btn { text-decoration: none; }
     try { canShare = !!(file && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { canShare = false; }
     // iPhone は共有シートの「"ファイル"に保存」が確実（ホーム画面のアプリでダウンロードのリンクを開くと戻れなくなることがある）
     const shareFirst = canShare && platform() === 'ios';
+    // Claude上のページではファイルを保存できない（ダウンロードが許可されていない）ので「コピー」だけ
+    const inArtifact = !!(globalThis.claude && globalThis.claude.hot) || /claude(usercontent)?\.(ai|com)$/i.test(location.hostname);
     const playing = GAMES.filter((g) => sum.games[g].match).map((g) => RT.cfg(g).label);
-    const btns = (shareFirst ? '<button class="btn btn-gold" type="button" id="bk-share">共有・ファイルに保存</button>'
+    const btns = (inArtifact ? '' : shareFirst ? '<button class="btn btn-gold" type="button" id="bk-share">共有・ファイルに保存</button>'
       : '<button class="btn btn-gold" type="button" id="bk-dl">ファイルに保存</button>' + (canShare && platform() === 'android' ? '<button class="btn btn-ghost" type="button" id="bk-share">共有</button>' : '')) +
-      '<button class="btn btn-ghost" type="button" id="bk-copy">コピー</button><button class="btn btn-ghost" type="button" id="bk-close">閉じる</button>';
+      '<button class="btn ' + (inArtifact ? 'btn-gold' : 'btn-ghost') + '" type="button" id="bk-copy">コピー</button><button class="btn btn-ghost" type="button" id="bk-close">閉じる</button>';
     UI.openDialog('<h3>書き出す</h3>' +
       '<p>この端末の記録を1つのファイルにします。別の端末・ブラウザ・ホーム画面のアプリで「読み込む」と、続きから遊べます。</p>' +
       '<ul class="bk-list"><li>AI戦のレート：' + GAMES.map((g) => esc(RT.cfg(g).label) + ' <b>' + sum.games[g].r + '</b>').join('・') + '</li>' +
