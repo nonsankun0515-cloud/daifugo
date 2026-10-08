@@ -812,6 +812,42 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* 保存の知らせ（保存できない・保存データを直した）。対局のダイアログ（#overlay）とは別に、画面の上に出す */
+.save-note {
+  position: fixed;
+  left: 50%;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 58;
+  width: min(560px, calc(100vw - 16px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 5px 40px 5px 10px;
+  background: rgba(24, 5, 11, 0.96);
+  border: 6px solid transparent;
+  border-image: var(--fr-panel) 16 / 6px stretch;
+  background-origin: border-box;
+  color: var(--ivory);
+  font-size: 13px;
+  line-height: 1.55;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+}
+.save-note.err { background: linear-gradient(90deg, rgba(150, 24, 44, 0.96), rgba(40, 6, 14, 0.97) 55%); }
+.save-note.ok { color: var(--ok); }
+.save-note p { margin: 0; flex: 1 1 220px; }
+.save-note .btn { min-height: 34px; }
+.save-note .sn-close {
+  position: absolute; top: 0; right: 0;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  background: none; border: 0; padding: 0;
+  color: var(--ivory-dim);
+  cursor: pointer;
+}
+.save-note .sn-close:hover { color: var(--ivory); }
+
 /* ───────── ダイアログ ───────── */
 #overlay {
   position: fixed;

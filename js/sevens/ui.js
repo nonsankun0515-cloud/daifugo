@@ -169,7 +169,7 @@
 
   function persist() {
     if (!S || onlineRoom()) return;
-    try { ss.match = SV.serialize(S); CM.save(); } catch (e) { /* 保存できなくても続行 */ }
+    CM.saveMatch('sevens', () => SV.serialize(S)); // 保存できなければ画面の上に知らせる（対局は続けられる）
   }
 
   function stopLoop() {

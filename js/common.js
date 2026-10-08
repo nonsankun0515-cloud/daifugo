@@ -3,39 +3,113 @@
 (function () {
   'use strict';
   const D = globalThis.DFG;
-  const A = D.Art, SND = D.Sound, UI = D.UI, RT = D.Rating, RU = D.Rules;
+  const A = D.Art, SND = D.Sound, UI = D.UI, RT = D.Rating;
   const $ = (id) => document.getElementById(id);
   const esc = UI.esc;
 
   // ─────────────────────────────────────────────
-  // 保存（この端末のブラウザだけ）。キーは大富豪だけだった頃のまま
+  // 保存（この端末のブラウザだけ）。キーは大富豪だけだった頃のまま（daifugo.v1）
+  // 中身の確認・形式の移行・壊れていたときの復旧・書き込みの結果は storage.js
+  //   store.settings / rules / rating / match … 大富豪（settings は全ゲーム共通の個人設定も）
+  //   store.sevens / store.speed … { settings, rules, rating, match }
+  //   store.onlineRatings … オンラインのレート（サーバーから届いた値の控え）
+  // 以前の「履歴」（出したカードの記録 store.log）はカウンティングできないようにやめた。読み込むときにも捨てる
   // ─────────────────────────────────────────────
-  const STORE_KEY = 'daifugo.v1';
-  const DEFAULT_SETTINGS = { players: 4, level: 'normal', games: 10, speed: 'normal', back: 'red', sound: true, bgm: true, bgmVol: 'low', autoPass: true, showPlayable: true, name: 'あなた' };
-  const newRating = () => ({ r: RT.START, matches: 0, best: RT.START, hist: [] });
-  let store = {};
-  try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { store = {}; }
-  // 大富豪（以前からの形のまま）
-  store.settings = Object.assign({}, DEFAULT_SETTINGS, store.settings || {});
-  store.rules = store.rules ? RU.migrate(store.rules) : Object.assign({}, RU.MINE);
-  store.rating = Object.assign(newRating(), store.rating || {});
-  delete store.log; // 以前の「履歴」（出したカードの記録）。カウンティングできないように履歴はなくした
-  // 七並べ・スピード
-  store.sevens = Object.assign({}, store.sevens);
-  store.sevens.settings = Object.assign({ players: 4, level: 'normal', games: 10 }, store.sevens.settings);
-  store.sevens.rules = D.SevensRules.normalize(store.sevens.rules);
-  store.sevens.rating = Object.assign(newRating(), store.sevens.rating || {});
-  store.speed = Object.assign({}, store.speed);
-  store.speed.settings = Object.assign({ level: 'normal', games: 3 }, store.speed.settings);
-  store.speed.rules = D.SpeedRules.normalize(store.speed.rules);
-  store.speed.rating = Object.assign(newRating(), store.speed.rating || {});
-  // オンラインのレート（サーバーから届いた値の控え）
-  store.onlineRatings = store.onlineRatings || {};
-  if (store.onlineRating && !store.onlineRatings.daifugo) store.onlineRatings.daifugo = store.onlineRating;
+  const ST = D.Storage;
+  const repo = ST.createRepository(ST.webBackend());
+  const boot = repo.load();
+  const store = boot.store;
   const settings = store.settings;
 
+  /** 保存する。{ ok, reason } を返す。保存できなければ画面の上に知らせる（対局はそのまま続けられる） */
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* 保存できなくても続行 */ }
+    const r = repo.save(store);
+    noteSave(r);
+    return r;
+  }
+
+  /** 途中の対局を保存する。make() は保存する形（各エンジンの serialize）。
+   *  レートの更新（recordRating）は保存しないので、対局と一緒にこの1回で書く（片方だけ残らない） */
+  function saveMatch(game, make) {
+    let snap;
+    try { snap = ST.stampMatch(game, make()); } catch (e) {
+      const r = { ok: false, reason: 'serialize', error: String((e && e.message) || e) };
+      noteSave(r);
+      return r;
+    }
+    if (game === 'daifugo') store.match = snap;
+    else store[game].match = snap;
+    return save();
+  }
+
+  // ── 保存の知らせ（画面の上の帯 #save-note）。対局のダイアログ（#overlay）とは別なので、対局の操作をじゃましない ──
+  const SAVE_MSG = {
+    quota: 'この端末に保存できていません（空き容量が足りないか、プライベートブラウズです）',
+    denied: 'この端末に保存できていません（このブラウザでは保存が許可されていません）',
+    error: 'この端末に保存できていません',
+    verify: 'この端末に保存できていません',
+    serialize: 'この端末に保存できていません（保存する形にできませんでした）',
+    unavailable: 'このブラウザでは保存が使えません。ページを閉じると、対局やレートは残りません',
+    conflict: '別のタブ（ウィンドウ）で保存データが更新されました。上書きしないよう、このタブでは保存を止めています',
+    incompatible: '新しいバージョンのアプリで保存されたデータです。データを守るため、このページでは保存しません',
+    protect: '保存データの一部が読めず、元のデータの控えも残せませんでした（空き容量不足）。元のデータを守るため保存を止めています。「このまま保存」を選ぶと、読めなかった部分は失われます',
+  };
+  const note = { reason: null, timer: 0 };
+
+  function showNote(kind, text, actions, autoHide) {
+    const el = $('save-note');
+    if (!el) return;
+    clearTimeout(note.timer);
+    el.className = 'save-note ' + kind;
+    el.setAttribute('role', kind === 'err' ? 'alert' : 'status');
+    el.innerHTML = '<p>' + esc(text) + '</p>' +
+      actions.map((a, i) => '<button type="button" class="btn btn-sm ' + (i ? 'btn-ghost' : 'btn-gold') + '" data-i="' + i + '">' + esc(a.label) + '</button>').join('') +
+      '<button type="button" class="sn-close" aria-label="閉じる">' + A.icon('close', 16) + '</button>';
+    el.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => actions[+b.dataset.i].run()));
+    el.querySelector('.sn-close').addEventListener('click', hideNote);
+    el.hidden = false;
+    if (autoHide) note.timer = setTimeout(hideNote, autoHide);
+  }
+  function hideNote() { clearTimeout(note.timer); const el = $('save-note'); if (el) el.hidden = true; }
+
+  function retrySave() {
+    const r = save();
+    if (!r.ok) noteSave(r, '（もう一度試しましたが、保存できませんでした）');
+  }
+  function noteActions(reason) {
+    if (reason === 'conflict' || reason === 'incompatible') return [{ label: '再読み込み', run: () => location.reload() }];
+    if (reason === 'protect') {
+      return [{ label: 'もう一度試す', run: () => { repo.retryProtect(); retrySave(); } },
+        { label: 'このまま保存', run: () => { repo.allowOverwrite(); retrySave(); } }];
+    }
+    if (reason === 'unavailable') return [];
+    return [{ label: 'もう一度保存', run: retrySave }];
+  }
+  /** 保存の結果を知らせる。同じ理由の失敗は続けて出さない（閉じたらそのまま）。失敗のあと保存できたら「保存できました」 */
+  function noteSave(r, again) {
+    if (r.ok) {
+      if (note.reason) { note.reason = null; showNote('ok', '保存できました', [], 2500); }
+      return;
+    }
+    if (!again && note.reason === r.reason) return;
+    note.reason = r.reason;
+    showNote('err', (SAVE_MSG[r.reason] || SAVE_MSG.error) + (again || ''), noteActions(r.reason));
+  }
+
+  /** 起動したときの読み込みの結果を知らせる（ふつうに読めた・古い形式から移行しただけなら何も出さない） */
+  function noteBoot() {
+    const b = boot;
+    if (b.mode !== 'ok') return noteSave({ ok: false, reason: b.mode });
+    if (b.commit && !b.commit.ok) return noteSave(b.commit);
+    const kept = '（読めなかったデータは、この端末に残してあります）';
+    let msg = '';
+    if (b.status === 'recovered') msg = '保存データが読めなかったため、前回正常に読めたデータに戻しました' + kept;
+    else if (b.status === 'corrupt') msg = '保存データが読めなかったため、はじめから始めます' + kept;
+    else if (b.status === 'repaired') {
+      const labels = Array.from(new Set(b.issues.filter((x) => x.level === 'repair').map((x) => x.label)));
+      msg = '保存データの一部が読めなかったため、直しました：' + labels.join('・') + kept;
+    }
+    if (msg) showNote('info', msg, [], 15000);
   }
 
   // ─────────────────────────────────────────────
@@ -132,6 +206,8 @@
   const fmtExp = (v) => (Math.abs(v) < 0.05 ? '±0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1));
   const pct = (p) => Math.round(p * 100) + '%';
 
+  /** レートを変える。ここでは保存しない：呼んだ側が、対局の状態（結果を付けた試合・棄権で消した試合）と一緒に1回で保存する
+   *  （レートだけ保存されて試合が残ると、つづきから遊んで同じ試合のレートがもう一度変わってしまう） */
   function recordRating(game, delta, entry) {
     const rt = ratingOf(game);
     const before = rt.r;
@@ -140,7 +216,6 @@
     rt.best = Math.max(rt.best, rt.r);
     rt.hist.push(Object.assign({ at: Date.now(), before, after: rt.r, d: delta }, entry));
     if (rt.hist.length > 50) rt.hist.splice(0, rt.hist.length - 50);
-    save();
     return { before, after: rt.r };
   }
 
@@ -316,12 +391,18 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bookOpen() && $('overlay').hidden) closeBook(); });
     document.querySelectorAll('[data-sound-btn]').forEach((b) => b.addEventListener('click', toggleSound));
     applySettings();
+    // ほかのタブ（ウィンドウ）が保存データを書き換えたら、このタブでは保存を止めて知らせる（黙って上書きしない）
+    addEventListener('storage', (e) => {
+      if (e.key !== null && e.key !== ST.KEY) return;
+      if (repo.checkExternal()) noteSave({ ok: false, reason: 'conflict' });
+    });
+    noteBoot();
   }
 
   D.Games = D.Games || {};
   D.Books = D.Books || {};
   D.Common = {
-    store, settings, save, applySettings, toggleSound, playerName, LEVEL_LABEL, SPEEDS,
+    store, settings, save, saveMatch, saveStatus: () => repo.status(), applySettings, toggleSound, playerName, LEVEL_LABEL, SPEEDS,
     showScreen, onShow, visible, seg, toggle, row, section,
     ratingOf, recordRating, applyRatedLocal, abandonRatedLocal, abandonNote, rateNote, rateBoxHTML, animateRate, fmtExp, pct,
     openRatedDialog, askAbandon, finalHTML, ptsHTML,

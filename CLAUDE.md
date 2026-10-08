@@ -93,7 +93,8 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 | `index.html`, `css/style.css` | 画面（開発用。ブラウザでそのまま開ける）。ホーム（`scr-home`＋下のナビ）・各ゲームの卓・設定・オンライン |
 | `js/main.js` | 起動（共通部品→各ゲームの `init`→最後のタブ、または招待された部屋） |
 | `js/shell.js` | 外枠：下のナビ・ゲームのホーム（`homeHTML`）・マイページ（名前・全ゲームのレート・共通設定） |
-| `js/common.js` | 共通：保存（`localStorage` の `daifugo.v1`。`store.sevens`/`store.speed` にゲームごと）・個人設定・画面切り替え・設定の部品・レート戦（`applyRatedLocal` 等）・試合結果・ルールブックの枠 |
+| `js/storage.js` | **保存の境界**（`D.Storage`。画面から独立、Nodeのテストでも動く）：`localStorage` の読み込み・形式（`schemaVersion`）の確認と移行・壊れたときの復旧・書き込みの結果（成功／容量不足など）・ほかのタブとの競合。下の「保存」を参照 |
+| `js/common.js` | 共通：保存の窓口（`save()`・`saveMatch()`。`store.sevens`/`store.speed` にゲームごと。保存できないときの知らせ `#save-note`）・個人設定・画面切り替え・設定の部品・レート戦（`applyRatedLocal` 等）・試合結果・ルールブックの枠 |
 | `js/install.js` | ホーム画面に追加の案内（ブラウザを見分けて手順を出す。Android・PCの Chrome / Edge は `beforeinstallprompt` で「追加する」。ホーム上の案内は閉じたら30日出さない：`store.installTipOff`） |
 | `js/bgm.js` | BGM（画面ごとに曲を替える。音量は Web Audio の GainNode。`D.BGM.status()` で様子を見られる） |
 | `audio/` | BGM の mp3（96kbps）と `CREDITS.txt`。`build.py` が `docs/audio/` にコピー |
@@ -114,8 +115,9 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 | `js/app.js` | 大富豪のホーム・設定・ローカル対戦の進行・オンライン対戦の卓（`D.Games.daifugo`） |
 | `js/online-room.js` | 部屋の仕組み `RoomCore`（サーバーとテストで共通）。ゲームごとの違いは `ADAPTERS`（大富豪・七並べ＝順番のあるゲーム、スピード＝リアルタイム） |
 | `server/` | Cloudflare のサーバー（`wrangler.toml`, `src/index.js`）。`js/` のエンジンをそのまま読み込む。Durable Object は部屋ごとの `Room` と、レート保存用の `Ratings` |
-| `tests/test.html` | 大富豪のルール60件＋オンライン11件＋七並べ・スピード15件（`games_tests.js`）＋AI のテスト |
-| `tools/run_tests.js` | 上と同じテストをブラウザなしで実行（`node tools/run_tests.js`、約30秒。失敗があれば終了コード1） |
+| `tests/test.html` | 大富豪のルール60件＋オンライン11件＋七並べ・スピード15件（`games_tests.js`）＋保存24件（`storage_tests.js`）＋AI のテスト |
+| `tests/storage_tests.js` | 保存のテスト：古い形式（9/25・9/26・9/27）の fixture からの移行、壊れたJSON・数値でないレート・知らない値・未来の形式、容量不足・書き込み禁止・ほかのタブ・移行の途中の失敗（故障注入）、3ゲームの途中再開、ランダム対戦の全局面（約4600）が「つづきから遊べる」と判定されること |
+| `tools/run_tests.js` | 上と同じテストをブラウザなしで実行（`node tools/run_tests.js`、約15〜30秒。失敗があれば終了コード1） |
 | `tests/bench.html` | AIの強さ比べ（`?games=60&budget=300`） |
 | `tests/frame.html` | 大きな画面の見た目確認（`?w=1366&h=768`。Browserペインが小さいため） |
 | `tools/build.py` | 1ファイルにまとめる → `dist/index.html`, `dist/artifact.html`, `docs/`（アプリ版） |
@@ -130,6 +132,16 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 
 - **エンジン**：`E.getRequest(S)` で「次に誰が何をするか」、`E.apply(S, action)` で進めてイベント列を返す。UIはイベントを順に再生し、最後にエンジンの状態と合わせる。
 - **オンライン**：サーバーが正（ルール判定・AI・保存）。`RoomCore.viewFor()` が各人に「自分の手札だけ見える状態」と要求を送る。7渡し・交換のカードは当事者だけに見せる。AIの手番はDurable Objectのアラームで進める。切断した人の番は15秒後にAIが代打ち。退出した席はAIが引き継ぎ、途中参加はAIの席に座る。招待リンクは `…/daifugo/#r-部屋コード`。
+- **保存**（2026-10-08 CT-01。`js/storage.js`。設計は OneDrive の `トランプアプリ/Cards Table 技術設計・実装バックログ 2026-10-08.md` の CT-01）：
+  - キー（名前は変えない）：`daifugo.v1`＝本体／`daifugo.v1.bak`＝最後に問題なく読めた本体の控え（起動のたびに更新）／`daifugo.v1.s1`＝形式の番号がない頃の原本（移行の前に残す）／`daifugo.v1.broken`＝壊れていた・直した本体の原本。`daifugo.cid`（オンラインの本人ID）は net.js のままで、今回は触っていない。
+  - 形式：`schemaVersion` 1＝2026-09-27 までの番号なしの形、2＝`schemaVersion`・`revision`（書いた回数）・`savedAt` を足した形。途中の対局には `engineVersion`（ゲームごと、今は全部1）。中身の形は1と同じ（足しただけ）なので、以前のアプリに戻しても読める（テストで確認）。大富豪だけの頃の `onlineRating` は `onlineRatings.daifugo` へ。出したカードの履歴 `log` は読み込むたびに捨てる（復活させない）。
+  - 読み込み（`repo.load()`）：JSON → 形式の番号 → 移行（`MIGRATIONS[v]` は v→v+1 の純粋な関数。ルールの中身の更新 `RU.migrate` とは別）→ 中身の確認（`sanitize`：設定の知らない値は既定値、レートが数値でなければ記録 `hist` の最後の値か1500、途中の対局はカードの重複・枚数・得点と記録・手番・エンジンで読めるかを `checkMatch` で確かめ、だめならその対局だけ外す）。知らない項目は残す。`__proto__` などは写さない。
+  - 決まり：**直す（値を捨てる）前に原本を別のキーに残す**。残せなければ本体を書き換えない（`protect`。帯に「もう一度試す／このまま保存」）。移行は足すだけなので、直すところがなければ原本を残せなくても移行する。本体が読めなければ控えから戻し（`recovered`）、控えもなければはじめから（`corrupt`）。どちらも壊れた本体は `.broken` に残す。**未来の形式**（`schemaVersion` が大きい）は読めるところだけ使い、何も書かない（`incompatible`）。
+  - 書き込み（`save()`）：`{ ok, reason }` を返す（`quota`／`denied`／`verify`（書いたはずの値が読めない）／`serialize`／`conflict`／`incompatible`／`protect`／`unavailable`）。書いたあと読み直して確かめる。失敗したら画面の上の帯（`#save-note`。`#overlay` のダイアログとは別で、対局のじゃまをしない。同じ理由の失敗は続けて出さない。×で閉じられる）で知らせ、「もう一度保存」。直ったら「保存できました」。
+  - **ほかのタブ**：本体が、最後に読んだ・書いた文字列と違っていたら上書きしない（`conflict`。`storage` イベントでもすぐ気づく）→「再読み込み」。
+  - レートは対局と**1回の書き込み**で保存する：`recordRating()` は保存しない。`applyRatedLocal` のあとは各ゲームの `persist()`、棄権（`abandonRatedLocal`）のあとは対局を消してから `save()`（どの呼び出しもそうなっている）。以前はレートと対局を別々に保存していたので、間で失敗すると同じ試合のレートが2回変わる余地があった。
+  - 対局の保存は `CM.saveMatch(game, () => serialize(S))`（`engineVersion` を付ける。スピードは時計 `clock` を外す）。保存の様子は `DFG.Common.saveStatus()`。
+  - 形を変えるときは `SCHEMA_VERSION` を上げて `MIGRATIONS` に1つ足し、`storage_tests.js` に古い形の fixture を足す。エンジンの保存の形を変えたら `ENGINE_VERSION` を上げて `checkMatch` を直す。
 - **ホーム画面に追加**（2026-09-26 ユーザーの希望「Chromeで開いても追加できるように」）：iPhone は Safari・Chrome・Edge・Firefox どれでも共有ボタン →「ホーム画面に追加」。LINE・Instagram などアプリの中のブラウザでは追加できないので、ふつうのブラウザで開き直す案内（LINE は `?openExternalBrowser=1` で外のブラウザが開く）。招待リンクにも `?openExternalBrowser=1` を付け、開いたあと `Install.cleanURL()` でアドレスから消す。manifest に `id: "./"`。ホーム画面のアプリの localStorage はブラウザとは別（案内にも書いた）。
 - **BGM**（2026-09-26 ユーザーの希望。**最初から小さめの音で鳴る**）：曲は **Kevin MacLeod（incompetech.com）、CC BY 4.0**。ホーム・設定・待合室＝Lobby Time、大富豪＝Cool Vibes、七並べ＝Bossa Antigua、スピード＝Hep Cats（ユーザーが選んだ）。クレジットはマイページの下・README・`audio/CREDITS.txt`（CC BY の決まり：曲名・作曲者・ライセンス・変換したこと）。
   - DOVA-SYNDROME は 2026-09-15 に **OpenTracks** に名前が変わり、規約で「利用者が音声ファイルに簡単にアクセス・複製できる状態での利用」を禁止している → 公開リポジトリに置けないので使わない。曲を足すときも CC BY / CC0 など再配布できるものにする。
@@ -151,10 +163,11 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 
 ## 開発のしかた
 
-- 手元で動かす：`.claude/launch.json` の **daifugo**（`py tools/devserver.py 8793`）→ http://localhost:8793/
+- 手元で動かす：`.claude/launch.json` の **daifugo**（`py tools/devserver.py 8793`）→ http://localhost:8793/（`C:/Users/Nozo3/OneDrive/クロード/.claude/launch.json` にも同じ設定がある。そのフォルダで開いたチャット用）
 - 手元のオンラインサーバー：**daifugo-server**（`wrangler dev`、ポート8787）。localhost で開くとアプリは自動でこちらにつながる。
 - 2人で試す：http://localhost:8793 と http://127.0.0.1:8793 を別タブで開く（別の端末として扱われる）。
 - テスト：`node tools/run_tests.js`（PATH の先頭に Node のフォルダを入れる）か http://localhost:8793/tests/test.html。**全部合格してから公開**する。
+- 保存の確かめ方（ブラウザ）：`localStorage` に古い形の JSON を入れて再読み込み → `DFG.Common.saveStatus()`。容量不足は `Storage.prototype.setItem` を `QuotaExceededError` を投げる関数に差し替えてから設定を変える。ほかのタブは `tabs_create` で同じURLをもう1つ開いて、片方で設定を変える。
 - 別のチャットの開発サーバーが 8793 で動いたままのことがある。そのときは preview_start が使えないが、Browserペインで http://localhost:8793/ を直接開けば同じファイルが見える（キャッシュしないサーバー）。
 - ハッシュ（`#r-…`）だけ違うURLへの移動ではページが再読み込みされない。コードを変えたら `location.reload()` する。
 - **見た目をまとめて確かめる**：Browserペインのスクリーンショットは失敗しやすい（隠れているとき・画面の切り替え直後）。Edge のヘッドレスなら確実に撮れる（ユーザーに見せる画像は `--force-device-scale-factor=2` でスマホと同じ細かさに）：PowerShell で `Start-Process msedge.exe -ArgumentList '--headless=new','--disable-gpu','--hide-scrollbars','--user-data-dir=<作業用フォルダ>','--window-size=2440,880','--virtual-time-budget=8000','--screenshot=<出力.png>','http://localhost:8793/…' -Wait`（Edge は `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`。出力先は Windows 形式のパス）。いくつかの画面を並べるときは、同じオリジンの確認用ページに 375×812 の iframe を並べ、親から `localStorage`（`installTipOff` など）を書いてから読み込み、`iframe.contentWindow.DFG…` やボタンのクリックで画面を切り替える（確認用ページはコミットしない）。ヘッドレスでは演出が途中で止まって半透明に写るので、iframe に `*{animation-duration:0s!important;transition:none!important}` を足し、`Element.prototype.animate` を空にしてから撮る。字体の候補を比べるときは、iframe の head に Google Fonts の link と `:root{--font-display:…}` を足せばアプリを変えずに試せる。
@@ -192,6 +205,8 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 - style属性に埋め込む背景画像は `url('…')`（シングルクォート）。
 - Workers では読み込み時の非同期処理・乱数が禁止 → ファイルの一番外側で `MessageChannel` や `Math.random` を使わない（`ai.js` の yield は遅延作成）。
 - workers.dev のサブドメインは `package.json` の名前から自動登録された（`daifugo-online` は他人が使用中だった）。
+- このPCの `python` は Microsoft Store の入口だけで、何も実行しない（エラーも出ない）。Python は **`py`** で動かす。
+- `CM.recordRating()` は保存しない（レートと対局を1回で保存するため）。新しくレートを変える処理を足すときは、そのあと必ず `persist()`／`save()` する。
 
 ## これまでの経緯
 
@@ -206,9 +221,24 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 - 2026-09-26（8）：BGM（Kevin MacLeod の4曲・画面ごと・小さめの音で最初から・マイページで設定・スピーカーのボタンでまとめて消す）
 - 2026-09-26（9）：ロビーの背景をカジノの絨毯に（茶色一色をやめた。ホーム・マイページ・設定・オンラインの画面。タイル・レートの帯・下のナビもワインレッドに）
 - 2026-09-27（10）：ヨーロッパ調のヴィンテージの見た目に（丸いボタン・角丸をやめて額縁に。字体を Kaisei Decol・Cinzel に。ダイアログ・ルールブック・チャット欄も茶色からワインレッドに）
+- 2026-10-08（11）：CT-01 保存・移行（`js/storage.js`。保存できないときの知らせ・形式の番号と中身の確認・原本を残す移行・控えからの復旧・ほかのタブとの競合・レートと対局を1回で保存・故障注入テスト24件）。**手元でコミットしただけ（push・ビルド・公開はしていない）**
 - 2026-09-26（7）：大富豪の「履歴」（出したカードの一覧）をなくした（ユーザーの希望：カウンティングできないように）。ボタン・画面・保存（`store.log`）とも削除。12ボンバーで指名しなかったときは吹き出しで知らせる
 
-## 現在の状態（2026-09-27、5つ目のチャット。次のチャットはここから）
+## 現在の状態（2026-10-08、CT-01 保存・移行。次のチャットはここから）
+
+- **CT-01 は手元でコミット済み（2026-10-08、ユーザーの指示。未push・未ビルド・未公開）**。基準は `1416609`（作業の前に差分なしを確認）。変えたもの：`js/storage.js`（新規）・`js/common.js`・`js/app.js`・`js/sevens/ui.js`・`js/speed/ui.js`・`index.html`・`css/style.css`・`tests/storage_tests.js`（新規）・`tests/test.html`・`tools/run_tests.js`・このファイル。`docs/`・`dist/` は前のまま（公開するときに `py tools/build.py`。作業用フォルダのコピーでビルドして、`storage.js` が1ファイルに入り、起動することは確認済み）。サーバー（`server/`）と `js/engine.js` などのエンジンは変えていない（Worker の deploy は不要）。
+- **公開中のもの**（GitHub Pages・Workers・Claude上のページ）は 2026-09-27 のまま。保存の形式は以前のアプリでも読めるので、公開の順番の制約はない。
+- **テスト**：`node tools/run_tests.js` で 大富豪60・オンライン11・七並べ／スピード15・**保存24**・AI 5 の **115件すべて合格**（ブラウザの tests/test.html でも同じ）。保存のテストは、わざと壊した `storage.js`（競合の確認・読み直し・履歴の削除・protect・カードの重複・得点の確認・未来の形式・控えからの復旧をそれぞれ外したもの）で失敗することも確かめた。
+- **ブラウザ（Browserペイン）で確かめたこと**：9/27の形式（3ゲームの途中の対局・レート戦の途中・オンラインのレートの控え・履歴 `log` 入り）を入れて再読み込み → 知らせなしで移行（`schemaVersion` 2、原本 `.s1`・控え `.bak` あり、`log` なし）、ホームのレート・「つづきから（レート戦 第1/10ゲーム）」、3ゲームとも「つづきから」で手札・場・台札・ルール・手番・得点・レート戦の情報が同じ／容量不足を注入 → 帯「この端末に保存できていません」、もう一度保存（まだ失敗なら「もう一度試しましたが…」）、閉じたら同じ失敗では出し直さない、空きができたら「保存できました」／2つ目のタブで設定を変える → 1つ目のタブにすぐ帯、1つ目では保存しない、「再読み込み」で2つ目の内容になる／本体を途中で切る → 控えから戻して知らせる・壊れた本体は `.broken`／棄権のレートと対局の削除が1回の書き込み。Edge のヘッドレスでスマホ幅（375px）の帯（容量不足・対局中・復旧・修理・ほかのタブ）を撮って、文字が読めること。
+- **まだ確かめていないこと（CT-01）**：
+  - 本物の iPhone（Safari・ホーム画面のアプリ）での容量不足・プライベートブラウズ・帯の見え方。実機で `localStorage` が満杯になる状況は作っていない（テストと Browserペインでの差し替えだけ）。
+  - Claude上のページ（artifact）で `localStorage` が使えない場合、起動のたびに「このブラウザでは保存が使えません」の帯が出る（×で閉じられる）。artifact では確かめていない。
+  - 対局中は帯が上のボタン（メニューなど）に重なる（×で閉じれば戻る）。出し方は実機で見て調整したい。
+  - 古いアプリ（キャッシュされた前のPWA）と新しいアプリを同時に開いたときは、新しい方だけが競合に気づく（古い方は今までどおり上書きする）。
+  - オンラインの本人ID（`daifugo.cid`）の保存は以前のまま（失敗しても知らせない）。本人権限の移行は今回の対象外。
+- **以前のチャット（2026-09-27）で確かめたこと・まだのこと**は下のとおり（変わっていない）。
+
+### 2026-09-27 の状態（5つ目のチャット）
 
 - **すべて公開済み**：サーバー（Workers。スピードの30秒切断のルール入り。このチャットでは変更なし）・アプリ版（GitHub Pages）・Claude上のページ（バージョン14、BGMの mp3 つき）。この上の（10）のヴィンテージの見た目まで。
 - **テスト**：`node tools/run_tests.js` で 大富豪60・オンライン11・七並べ／スピード15・AI 5 すべて合格。
@@ -225,7 +255,13 @@ iPhoneのホーム画面に置けるアプリ版がある。今後もゲーム�
 
 ## 次の候補・改善点（未決定。ユーザーと相談して決める）
 
-2026-09-26（4）に批判的に見直した結果（ユーザーに伝えた順）：
+2026-10-08 に改善の方針と実装の順番を OneDrive の `トランプアプリ/` に記録した（`Cards Table 改善・差別化戦略`・`技術設計・実装バックログ`・`Claude Code引き継ぎ`）。CT-01（保存・移行）は上のとおりローカルで実装済み。次の優先は：
+1. **CT-01 の公開判断**：ユーザーが見て OK なら `py tools/build.py` → テスト → コミット → push（サーバーは変わらない）。iPhone で帯の見え方を確認。
+2. **CT-02 バックアップ／復元**（書き出し・読み込み。通常のバックアップに `cid` を入れない。オンラインのレートを端末から上書きしない）。CT-01 の帯の「もう一度保存」の横に「書き出す」を足せる。`navigator.storage.persist()` の検討もここで（Firefox は確認の画面が出る）。
+3. **CT-03 オンラインレートの精算の冪等性**（`Ratings.record()` に eventId と重複排除。Worker の変更なので deploy の順番に注意）。
+4. CT-04 通信（actionId・局面ID・ACK・再同期）。
+
+2026-09-26（4）に批判的に見直した結果（ユーザーに伝えた順。1 の保存は CT-01 で一部対応、残りは CT-02）：
 1. **保存がこの端末のブラウザだけ**：AI戦のレート・途中の対局・オンラインの本人ID（`daifugo.cid`）は localStorage。iPhoneではSafariとホーム画面のアプリで保存場所が別、Safariで7日ほど開かないと消えることがある、機種変更で引き継げない。→「引き継ぎコード」（書き出し・読み込み。無料でできる）。`navigator.storage.persist()` も。
 2. **大富豪の「つよい」も時間で考える量が決まる**（`js/ai.js` の `chooseTurnMC`、420ms）：スマホでは弱くなり、レート1630とずれる。七並べと同じく「同じ配り方で比べる＋回数で固定」にして測り直す（大富豪は1試合が長いので測るのに時間がかかる）。
 3. **3つのゲームの画面の進行がほぼコピー**（メニュー・結果・棄権・オンラインの結果）。4つ目のゲームを足す前に共通化しないと、直し漏れが増える。

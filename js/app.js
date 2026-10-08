@@ -209,10 +209,7 @@
 
   function persist() {
     if (!S || onlineRoom()) return; // オンライン対戦の状態はサーバーが持つ
-    try {
-      store.match = E.serialize(S);
-      save();
-    } catch (e) { /* 保存できなくても続行 */ }
+    CM.saveMatch('daifugo', () => E.serialize(S)); // 保存できなければ画面の上に知らせる（対局は続けられる）
     saveHot();
   }
 

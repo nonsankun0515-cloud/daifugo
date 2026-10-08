@@ -138,7 +138,7 @@
 
   function persist() {
     if (!S || onlineRoom()) return;
-    try { const o = SP.serialize(S); delete o.clock; ss.match = o; CM.save(); } catch (e) { /* 保存できなくても続行 */ }
+    CM.saveMatch('speed', () => { const o = SP.serialize(S); delete o.clock; return o; }); // 時計は保存しない（再開したら組み直す）
   }
 
   // ─────────────────────────────────────────────
