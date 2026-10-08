@@ -832,6 +832,59 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline: 2
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* 保存の知らせ（保存できない・保存データを直した）。対局のダイアログ（#overlay）とは別に、画面の上に出す */
+.save-note {
+  position: fixed;
+  left: 50%;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 58;
+  width: min(560px, calc(100vw - 16px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 5px 40px 5px 10px;
+  background: rgba(24, 5, 11, 0.96);
+  border: 6px solid transparent;
+  border-image: var(--fr-panel) 16 / 6px stretch;
+  background-origin: border-box;
+  color: var(--ivory);
+  font-size: 13px;
+  line-height: 1.55;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+}
+.save-note.err { background: linear-gradient(90deg, rgba(150, 24, 44, 0.96), rgba(40, 6, 14, 0.97) 55%); }
+.save-note.ok { color: var(--ok); }
+.save-note p { margin: 0; flex: 1 1 220px; }
+.save-note .btn { min-height: 34px; }
+.save-note .sn-close {
+  position: absolute; top: 0; right: 0;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  background: none; border: 0; padding: 0;
+  color: var(--ivory-dim);
+  cursor: pointer;
+}
+.save-note .sn-close:hover { color: var(--ivory); }
+
+/* バックアップ（マイページの「データの引き継ぎ」・書き出す・読み込むのダイアログ） */
+.bk-list { margin: 0 0 10px; padding-left: 1.3em; font-size: 13px; line-height: 1.75; color: var(--ivory); text-align: left; }
+.bk-list b { font-family: var(--font-num); color: var(--gold-light); }
+.dialog .bk-note { font-size: 12px; line-height: 1.6; text-align: left; margin: 10px 0 0; }
+.dialog .bk-err { color: #ffb8b8; font-weight: 700; font-size: 13px; text-align: left; margin: 10px 0 0; }
+.bk-paste { display: block; margin-top: 12px; font-size: 12px; color: var(--ivory-dim); }
+.bk-text { display: block; margin-top: 4px; min-height: 76px; resize: vertical; font-size: 16px; line-height: 1.4; word-break: break-all; }
+#bk-copybox .bk-text { margin-top: 6px; }
+.bk-cmp { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--ivory); }
+.bk-cmp th, .bk-cmp td { padding: 5px 4px; border-bottom: 1px solid var(--lacquer-line); text-align: left; vertical-align: top; }
+.bk-cmp tbody th { white-space: nowrap; }
+.bk-cmp thead th { color: var(--ivory-dim); font-weight: 500; font-size: 12px; }
+.bk-cmp tbody th { font-weight: 500; color: var(--ivory-dim); }
+.bk-cmp td.chg { color: var(--gold-light); font-weight: 700; }
+.bk-cmp td small { display: block; font-size: 11px; font-weight: 500; color: var(--ivory-dim); }
+.bk-hint { margin: 8px 6px 4px; font-size: 12px; line-height: 1.6; color: var(--ivory-dim); }
+
 /* ───────── ダイアログ ───────── */
 #overlay {
   position: fixed;
@@ -1731,6 +1784,7 @@ a.btn { text-decoration: none; }
   <div id="fx" aria-hidden="true"></div>
   <div id="overlay" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>
+  <div id="save-note" class="save-note" hidden></div>
 </div>
 <script>
 /* 大富豪 — カードの基本定義 */
@@ -6920,44 +6974,854 @@ a.btn { text-decoration: none; }
 
 </script>
 <script>
+/* 保存の境界（この端末のブラウザの localStorage）：読み込み・形式の確認・移行・復旧・書き込みの結果
+ * 画面（DOM）から独立していて、テスト（tools/run_tests.js）でも同じものを動かす。使うのは common.js。
+ *
+ * キー（「大富豪」だった頃の名前のまま。変えると今の保存データが読めなくなる）
+ *   daifugo.v1         … 本体
+ *   daifugo.v1.bak     … 最後に問題なく読めた本体の控え（起動のたびに更新）。本体が読めないときはここから戻す
+ *   daifugo.v1.s1      … 形式の番号がない頃（schemaVersion 1）の原本。移行して書き換える前に残す
+ *   daifugo.v1.broken  … 壊れていた・一部を直した本体の原本。書き換える前に残す
+ *   daifugo.v1.prerestore … バックアップを読み込む直前の本体（マイページの「1つ前のデータに戻す」で使う）
+ *   （daifugo.cid はオンラインの本人IDで net.js が持つ。ここでは扱わない）
+ *
+ * 形式（schemaVersion。アプリのバージョンとは別の数字）
+ *   1 … 2026-09-27 までの形（番号なし）
+ *   2 … schemaVersion・revision（書いた回数）・savedAt を持つ。途中の対局に engineVersion。
+ *        大富豪だけの頃の onlineRating は onlineRatings.daifugo へ。log（出したカードの履歴）は持たない
+ *   中身の形は 1 と同じ（足しただけ）なので、古いアプリに戻しても読める（知らない項目は古いアプリもそのまま残す）。
+ *
+ * 決まり：
+ *   - 直す（壊れた値を外す・既定値に戻す）ときは、先に原本を別のキーに残す。残せなければ本体を書き換えない（protect）
+ *   - 新しい形式（schemaVersion が大きい）のデータは読めるところだけ使い、書き込まない（incompatible）
+ *   - ほかのタブ（ウィンドウ）が本体を書き換えていたら上書きしない（conflict）
+ *   - 書き込みは成功・失敗（容量不足 quota・禁止 denied など）を返す。画面はそれを見て知らせる
+ */
+(function () {
+  'use strict';
+  const D = (globalThis.DFG = globalThis.DFG || {});
+
+  const KEY = 'daifugo.v1';
+  const KEYS = { main: KEY, bak: KEY + '.bak', broken: KEY + '.broken', prerestore: KEY + '.prerestore', before: (v) => KEY + '.s' + v };
+  const SCHEMA_VERSION = 2;
+  /** 途中の対局（serialize した形）の版。エンジンの保存の形を変えたら上げて、読み込みの確認を足す */
+  const ENGINE_VERSION = { daifugo: 1, sevens: 1, speed: 1 };
+  const MAX_CHARS = 1000000; // ふだんは数十KB。これより大きいのは壊れたデータとして扱う
+
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const isInt = (v) => Number.isInteger(v);
+  const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+  const isBool = (v) => typeof v === 'boolean';
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const BAD_KEYS = ['__proto__', 'constructor', 'prototype'];
+  /** JSON から来たオブジェクトを1段だけ写す（__proto__ などは写さない） */
+  function copy(o) {
+    const r = {};
+    if (isObj(o)) for (const k of Object.keys(o)) if (!BAD_KEYS.includes(k)) r[k] = o[k];
+    return r;
+  }
+
+  // ─────────────────────────────────────────────
+  // 保存先（localStorage か、テスト用のメモリ）
+  // ─────────────────────────────────────────────
+  /** ブラウザの localStorage。使えない環境（アクセスで例外になる）なら null */
+  function webBackend() {
+    let ls = null;
+    try { ls = globalThis.localStorage || null; } catch (e) { ls = null; }
+    if (!ls) return null;
+    return {
+      get: (k) => ls.getItem(k),
+      set: (k, v) => ls.setItem(k, v),
+      remove: (k) => ls.removeItem(k),
+    };
+  }
+  /** メモリに保存する（テスト用） */
+  function memoryBackend(init) {
+    const m = new Map(Object.entries(init || {}));
+    return {
+      get: (k) => (m.has(k) ? m.get(k) : null),
+      set: (k, v) => { m.set(k, String(v)); },
+      remove: (k) => { m.delete(k); },
+      dump: () => Object.fromEntries(m),
+    };
+  }
+
+  /** 書き込みの例外の種類：quota（容量不足・プライベートブラウズ）／denied（禁止）／error */
+  function classify(e) {
+    const n = e && e.name, c = e && e.code;
+    if (n === 'QuotaExceededError' || n === 'NS_ERROR_DOM_QUOTA_REACHED' || c === 22 || c === 1014) return 'quota';
+    if (n === 'SecurityError' || c === 18) return 'denied';
+    return 'error';
+  }
+  const fail = (reason, error) => ({ ok: false, reason, error: error ? String((error && error.message) || error) : undefined });
+  const OK = { ok: true };
+
+  // ─────────────────────────────────────────────
+  // 形式の移行：MIGRATIONS[v] は v の形を v+1 の形にする（受け取ったデータは変えない純粋な関数）
+  // ルールの中身の更新（古いマイルール → 今のマイルール）は RU.migrate で、ここではない
+  // ─────────────────────────────────────────────
+  const MIGRATIONS = {
+    1(d) {
+      const o = copy(d);
+      delete o.log; // 出したカードの履歴（2026-09-26 にやめた。カウンティングできないように）
+      if (o.onlineRating !== undefined) {
+        // 大富豪しかなかった頃のオンラインのレートの控え
+        const ors = copy(o.onlineRatings);
+        if (!ors.daifugo) ors.daifugo = o.onlineRating;
+        o.onlineRatings = ors;
+        delete o.onlineRating;
+      }
+      o.schemaVersion = 2;
+      return o;
+    },
+  };
+  function migrate(data, from) {
+    let d = data;
+    for (let v = from; v < SCHEMA_VERSION; v++) {
+      if (!MIGRATIONS[v]) throw new Error('schemaVersion ' + v + ' からの移行がありません');
+      d = MIGRATIONS[v](d);
+    }
+    return d;
+  }
+
+  // ─────────────────────────────────────────────
+  // 中身の確認（schemaVersion 2 の形にそろえる）
+  //   fix    … 欠けた項目を既定値で補った・不要な項目を外した（ふつうのこと。知らせない）
+  //   repair … 値が壊れていたので直した・外した（知らせる。原本を残してから書き換える）
+  // ─────────────────────────────────────────────
+  const LEVELS = ['easy', 'normal', 'hard'];
+  const oneOf = (list) => (v) => list.includes(v);
+  const cleanName = (s) => s.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 8) || 'あなた';
+  /** 大富豪の設定と、全ゲーム共通の個人設定（以前からこの形で store.settings に入っている） */
+  const SETTINGS = {
+    players: { def: 4, ok: oneOf([3, 4, 5, 6]) },
+    level: { def: 'normal', ok: oneOf(LEVELS) },
+    games: { def: 10, ok: oneOf([5, 10, 0]) },
+    speed: { def: 'normal', ok: oneOf(['slow', 'normal', 'fast']) },
+    back: { def: 'red', ok: (v) => typeof v === 'string' && (!D.Art || own(D.Art.BACKS, v)) },
+    sound: { def: true, ok: isBool },
+    bgm: { def: true, ok: isBool },
+    bgmVol: { def: 'low', ok: oneOf(['low', 'mid', 'high']) },
+    autoPass: { def: true, ok: isBool },
+    showPlayable: { def: true, ok: isBool },
+    name: { def: 'あなた', ok: (v) => typeof v === 'string' && v === cleanName(v), fix: (v) => (typeof v === 'string' ? cleanName(v) : undefined) },
+  };
+  const GAMES = {
+    sevens: {
+      label: '七並べ',
+      settings: { players: { def: 4, ok: oneOf([3, 4, 5, 6]) }, level: { def: 'normal', ok: oneOf(LEVELS) }, games: { def: 10, ok: oneOf([5, 10, 0]) } },
+      rules: () => D.SevensRules,
+    },
+    speed: {
+      label: 'スピード',
+      settings: { level: { def: 'normal', ok: oneOf(LEVELS) }, games: { def: 3, ok: oneOf([1, 3, 5]) } },
+      rules: () => D.SpeedRules,
+    },
+  };
+  const LABEL = { daifugo: '大富豪', sevens: '七並べ', speed: 'スピード' };
+  const TABS = ['daifugo', 'sevens', 'speed', 'me'];
+
+  function issue(c, level, label, detail) { c.issues.push({ level, label, detail }); }
+
+  function settingsOf(src, schema, c, label) {
+    if (src !== undefined && !isObj(src)) issue(c, 'repair', label, '形が違う');
+    const o = copy(src);
+    for (const k of Object.keys(schema)) {
+      const f = schema[k];
+      if (!own(o, k)) { o[k] = f.def; continue; }
+      if (f.ok(o[k])) continue;
+      const fixed = f.fix ? f.fix(o[k]) : undefined;
+      issue(c, 'repair', label, k);
+      o[k] = fixed !== undefined && f.ok(fixed) ? fixed : f.def;
+    }
+    return o;
+  }
+
+  /** ルール。normalize は欠けた項目を既定値に、知らない値を既定値にする。後者だけ repair として数える */
+  function rulesOf(src, R, c, label, fallback) {
+    if (src === undefined || src === null) return fallback();
+    if (!isObj(src)) { issue(c, 'repair', label, '形が違う'); return fallback(); }
+    const n = R.normalize(src);
+    for (const d of R.RULES) if (own(src, d.key) && n[d.key] !== src[d.key]) { issue(c, 'repair', label, d.key); break; }
+    return R.migrate ? R.migrate(src) : n;
+  }
+
+  /** AI戦のレート { r, matches, best, hist }。r が壊れていたら記録（hist）の最後の値から戻す */
+  function ratingOf(src, c, label) {
+    const START = D.Rating ? D.Rating.START : 1500;
+    if (src === undefined || src === null) return { r: START, matches: 0, best: START, hist: [] };
+    if (!isObj(src)) { issue(c, 'repair', label, '形が違う'); return { r: START, matches: 0, best: START, hist: [] }; }
+    const o = copy(src);
+    let hist = Array.isArray(src.hist) ? src.hist.filter((h) => isObj(h) && isNum(h.after)) : [];
+    if (src.hist !== undefined && (!Array.isArray(src.hist) || hist.length !== src.hist.length)) issue(c, 'repair', label, 'hist');
+    if (hist.length > 50) hist = hist.slice(-50);
+    o.hist = hist;
+    if (!isNum(o.r)) {
+      if (src.r !== undefined) issue(c, 'repair', label, 'r');
+      o.r = hist.length ? hist[hist.length - 1].after : START;
+    }
+    if (!(isInt(o.matches) && o.matches >= 0)) {
+      if (src.matches !== undefined) issue(c, 'repair', label, 'matches');
+      o.matches = hist.length;
+    }
+    if (!isNum(o.best)) {
+      if (src.best !== undefined) issue(c, 'repair', label, 'best');
+      o.best = Math.max(o.r, START, ...hist.map((h) => h.after));
+    }
+    return o;
+  }
+
+  function matchOf(game, src, c) {
+    if (src === undefined || src === null) return null;
+    const why = checkMatch(game, src);
+    if (why) { issue(c, 'repair', LABEL[game] + 'の途中の対局', why); return null; }
+    const o = copy(src);
+    if (o.engineVersion === undefined) o.engineVersion = 1; // 版がない頃の対局は 1
+    return o;
+  }
+
+  function gameOf(game, src, c) {
+    const G = GAMES[game];
+    if (src !== undefined && !isObj(src)) issue(c, 'repair', G.label + 'の保存データ', '形が違う');
+    const s = isObj(src) ? src : {};
+    const o = copy(s);
+    o.settings = settingsOf(s.settings, G.settings, c, G.label + 'の設定');
+    o.rules = rulesOf(s.rules, G.rules(), c, G.label + 'のルール', () => G.rules().defaults());
+    o.rating = ratingOf(s.rating, c, G.label + 'のAI戦レート');
+    o.match = matchOf(game, s.match, c);
+    return o;
+  }
+
+  /** オンラインのレートの控え（正しい値はサーバー。壊れていたら外すだけ） */
+  function onlineOf(src, c) {
+    const o = {};
+    if (!isObj(src)) { if (src !== undefined) issue(c, 'fix', 'オンラインのレートの控え'); return o; }
+    for (const k of Object.keys(src)) {
+      if (BAD_KEYS.includes(k)) continue;
+      const v = src[k];
+      if (isObj(v) && isNum(v.r) && isInt(v.matches) && v.matches >= 0) o[k] = v;
+      else issue(c, 'fix', 'オンラインのレートの控え', k);
+    }
+    return o;
+  }
+
+  /** 保存データを schemaVersion 2 の形にそろえる。{ store, issues } */
+  function sanitize(data) {
+    const c = { issues: [] };
+    if (!isObj(data)) issue(c, 'repair', '保存データ', '形が違う');
+    const src = isObj(data) ? data : {};
+    const o = copy(src);
+    delete o.log; // 出したカードの履歴は持たない（古いアプリが書いたものも読まない）
+    delete o.onlineRating;
+    o.schemaVersion = SCHEMA_VERSION;
+    if (!(isInt(o.revision) && o.revision >= 0)) o.revision = 0;
+    if (typeof o.savedAt !== 'string') delete o.savedAt;
+    o.settings = settingsOf(src.settings, SETTINGS, c, '設定');
+    o.rules = rulesOf(src.rules, D.Rules, c, '大富豪のルール', () => Object.assign({}, D.Rules.MINE));
+    o.rating = ratingOf(src.rating, c, '大富豪のAI戦レート');
+    o.match = matchOf('daifugo', src.match, c);
+    o.sevens = gameOf('sevens', src.sevens, c);
+    o.speed = gameOf('speed', src.speed, c);
+    o.onlineRatings = onlineOf(src.onlineRatings, c);
+    if (!o.onlineRatings.daifugo && src.onlineRating !== undefined) Object.assign(o.onlineRatings, onlineOf({ daifugo: src.onlineRating }, c));
+    if (o.tab !== undefined && !TABS.includes(o.tab)) { issue(c, 'fix', '最後に開いたタブ'); delete o.tab; }
+    if (o.installTipOff !== undefined && !(isNum(o.installTipOff) && o.installTipOff >= 0)) { issue(c, 'fix', 'ホーム画面に追加の案内'); delete o.installTipOff; }
+    if (o.backupAt !== undefined && !(isNum(o.backupAt) && o.backupAt >= 0)) { issue(c, 'fix', '最後に書き出した日時'); delete o.backupAt; }
+    return { store: o, issues: c.issues };
+  }
+
+  /** 何もないところからの保存データ（はじめて開いたとき） */
+  function fresh() { return sanitize({}).store; }
+
+  // ─────────────────────────────────────────────
+  // 途中の対局の確認（つづきから遊べる形か）。問題がなければ null、あれば理由
+  // ─────────────────────────────────────────────
+  const PHASES = { daifugo: ['idle', 'exchange', 'play', 'over'], sevens: ['idle', 'play', 'over'], speed: ['idle', 'stuck', 'play', 'over'] };
+  const SEATS = { daifugo: [3, 6], sevens: [3, 6], speed: [2, 2] };
+  const SUITS = ['S', 'H', 'D', 'C'];
+
+  /** その対局にあるカードを全部集める（形が違えば理由の文字列）。count：全部で何枚あるはずか（わからなければ null） */
+  function cardsOf(game, m) {
+    const out = [];
+    if (game === 'speed') {
+      for (const P of m.players) {
+        if (!Array.isArray(P.deck) || !Array.isArray(P.field) || P.field.length !== 4) return '山札・場札の形が違う';
+        out.push(...P.deck, ...P.field.filter((x) => x !== null));
+      }
+      if (!Array.isArray(m.piles) || m.piles.length !== 2 || !m.piles.every(Array.isArray)) return '台札の形が違う';
+      for (const p of m.piles) out.push(...p);
+      return { cards: out, count: 52 };
+    }
+    for (const P of m.players) {
+      if (!Array.isArray(P.hand)) return '手札の形が違う';
+      out.push(...P.hand);
+    }
+    if (game === 'daifugo') {
+      if (!Array.isArray(m.discard) || !Array.isArray(m.pile)) return '場の形が違う';
+      out.push(...m.discard);
+      for (const e of m.pile) {
+        if (!isObj(e) || !Array.isArray(e.shown)) return '場の形が違う';
+        out.push(...e.shown);
+      }
+      return { cards: out, count: 52 + D.Rules.normalize(m.rules).jokers };
+    }
+    // 七並べ：場は スート → 1〜13 の欄（null か { id }）
+    if (!isObj(m.board) || !SUITS.every((s) => Array.isArray(m.board[s]) && m.board[s].length === 14)) return '場の形が違う';
+    for (const s of SUITS) for (const cell of m.board[s]) {
+      if (cell === null) continue;
+      if (!isObj(cell)) return '場の形が違う';
+      out.push(cell.id);
+    }
+    return { cards: out, count: null };
+  }
+
+  function checkMatch(game, m) {
+    if (!isObj(m)) return '形が違う';
+    const ev = m.engineVersion === undefined ? 1 : m.engineVersion;
+    if (!isInt(ev) || ev < 1) return 'engineVersion が不正';
+    if (ev > ENGINE_VERSION[game]) return '新しいバージョンのアプリで保存された対局';
+    if ((m.game === undefined ? 'daifugo' : m.game) !== game) return 'ゲームの種類が違う';
+    const P = m.players;
+    const [lo, hi] = SEATS[game];
+    if (!Array.isArray(P) || P.length < lo || P.length > hi || m.n !== P.length) return '人数が不正';
+    const scored = Array.isArray(m.history); // 得点表がない頃の大富豪の対局は、得点を0からやり直す（deserialize）
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i];
+      if (!isObj(p) || p.seat !== i || typeof p.name !== 'string') return '席が不正';
+      if (scored && !isNum(p.score)) return '得点が不正';
+      if (game === 'speed' && !(isInt(p.wins) && p.wins >= 0)) return '勝ち数が不正';
+    }
+    if (!PHASES[game].includes(m.phase)) return '進行の段階が不正';
+    if (!(isInt(m.gameNo) && m.gameNo >= 0)) return 'ゲーム番号が不正';
+    if (m.maxGames !== undefined && !(isInt(m.maxGames) && m.maxGames >= 0)) return 'ゲーム数が不正';
+    if (m.history !== undefined && !scored) return '記録が不正';
+    if (scored) {
+      if (m.history.length > m.gameNo) return '記録の数が合わない';
+      const sum = new Array(P.length).fill(0);
+      for (const h of m.history) {
+        if (!isObj(h) || !Array.isArray(h.pts) || h.pts.length !== P.length || !h.pts.every(isNum)) return '記録が不正';
+        h.pts.forEach((v, i) => { sum[i] += v; });
+      }
+      const got = P.map((p) => (game === 'speed' ? p.wins : p.score));
+      if (got.some((v, i) => v !== sum[i])) return '得点が記録と合わない';
+    }
+    if (m.rated !== undefined && m.rated !== null) {
+      const R = m.rated;
+      if (!isObj(R)) return 'レート戦の情報が不正';
+      if (!R.online) {
+        if (!Array.isArray(R.base) || R.base.length !== P.length || !R.base.every(isNum)) return 'レート戦の情報が不正';
+        if (!LEVELS.includes(R.level) || !(isInt(R.matches) && R.matches >= 0)) return 'レート戦の情報が不正';
+      }
+      if (R.result !== undefined && R.result !== null && !isObj(R.result)) return 'レート戦の結果が不正';
+    }
+    if (m.phase === 'idle') return null; // まだ配っていない
+    if (game !== 'speed' && m.phase === 'play' && !(isInt(m.turn) && m.turn >= 0 && m.turn < P.length)) return '手番が不正';
+    const cs = cardsOf(game, m);
+    if (typeof cs === 'string') return cs;
+    const seen = new Set();
+    for (const id of cs.cards) {
+      if (typeof id !== 'string' || !own(D.Cards.CARDS, id)) return '知らないカード';
+      if (seen.has(id)) return 'カードが重複';
+      seen.add(id);
+    }
+    if (cs.count !== null && seen.size !== cs.count) return 'カードの枚数が合わない';
+    if (game === 'sevens' && seen.size > 53) return 'カードの枚数が合わない';
+    // 最後に、エンジンで読み込んで次の手を数えられるか
+    try {
+      if (game === 'daifugo') {
+        const E = D.Engine;
+        const S = E.deserialize(m);
+        S.rules = D.Rules.migrate(S.rules);
+        const q = E.getRequest(S);
+        if (q && q.kind === 'turn') E.legalPlays(S, q.seat);
+      } else if (game === 'sevens') {
+        const S = D.Sevens.deserialize(m);
+        const q = D.Sevens.getRequest(S);
+        if (q) D.Sevens.legalMoves(S, q.seat);
+      } else {
+        const S = D.Speed.deserialize(m);
+        if (S.phase === 'play') { D.Speed.playable(S, 0); D.Speed.playable(S, 1); }
+      }
+    } catch (e) {
+      return '読み込めない（' + ((e && e.message) || e) + '）';
+    }
+    return null;
+  }
+
+  // ─────────────────────────────────────────────
+  // 読み書き
+  // ─────────────────────────────────────────────
+  function parse(raw) {
+    if (typeof raw !== 'string' || raw.length > MAX_CHARS) return { error: '大きすぎる' };
+    try { return { data: JSON.parse(raw) }; } catch (e) { return { error: 'JSON として読めない' }; }
+  }
+  const versionOf = (d) => (d.schemaVersion === undefined ? 1 : d.schemaVersion);
+
+  /**
+   * 保存先 backend（webBackend() か memoryBackend()。null なら保存できない環境）を使う窓口
+   *   load()  … 起動時に1回。{ status, store, issues, fromVersion, mode, commit }
+   *             status：new / ok / migrated（古い形式から移行）/ repaired（一部を直した）/ recovered（控えから戻した）/
+   *                     corrupt（読めず、はじめから）/ incompatible（新しい形式。保存しない）/ unavailable（保存できない環境）
+   *   save(store) … { ok: true, revision } か { ok: false, reason }。reason：quota / denied / error / verify / serialize /
+   *                 conflict（ほかのタブが書いた）/ incompatible / protect（原本を残せず書き換えを止めている）/ unavailable
+   */
+  function createRepository(backend, opts) {
+    const now = (opts && opts.now) || (() => Date.now());
+    let lastRaw = null; // 最後に読んだ・書いた本体（ほかのタブが書き換えたかをこれと比べる）
+    let mode = backend ? 'ok' : 'unavailable'; // ok / unavailable / incompatible / protect / conflict
+    let pending = []; // protect のとき、まだ残せていない原本 [{ key, raw }]
+    let last = null; // 最後の load / save の結果（確認用）
+
+    /** 書いて、読み直して同じか確かめる */
+    function put(k, v) {
+      try {
+        backend.set(k, v);
+        return backend.get(k) === v ? OK : fail('verify');
+      } catch (e) {
+        return fail(classify(e), e);
+      }
+    }
+
+    function write(store) {
+      const rev = (isInt(store.revision) ? store.revision : 0) + 1;
+      const meta = { schemaVersion: SCHEMA_VERSION, revision: rev, savedAt: new Date(now()).toISOString() };
+      let str;
+      try { str = JSON.stringify(Object.assign({}, store, meta)); } catch (e) { return fail('serialize', e); }
+      const r = put(KEYS.main, str);
+      if (!r.ok) return r;
+      Object.assign(store, meta);
+      lastRaw = str;
+      return { ok: true, revision: rev };
+    }
+
+    /** 控えなど、本体以外のキーを読む（読めなければ null） */
+    function readCandidate(k) {
+      let raw = null;
+      try { raw = backend.get(k); } catch (e) { return null; }
+      if (raw == null) return null;
+      const p = parse(raw);
+      if (p.error || !isObj(p.data)) return null;
+      const v = versionOf(p.data);
+      if (!isInt(v) || v < 1 || v > SCHEMA_VERSION) return null;
+      try { return sanitize(migrate(p.data, v)); } catch (e) { return null; }
+    }
+
+    /** 正常に読めた本体を控えに写す（同じなら書かない） */
+    function refreshBak() {
+      if (lastRaw == null) return;
+      try { if (backend.get(KEYS.bak) === lastRaw) return; } catch (e) { return; }
+      put(KEYS.bak, lastRaw); // 失敗しても本体には影響しない（次の起動でまた試す）
+    }
+
+    /** 原本を残す。全部残せたら true。残せなかったものは pending に入れる */
+    function preserve(list) {
+      pending = list.filter((x) => !put(x.key, x.raw).ok);
+      return !pending.length;
+    }
+
+    function done(status, store, issues, extra) {
+      last = Object.assign({ status, store, issues: issues || [], mode }, extra || {});
+      return last;
+    }
+
+    /** 本体が読めないとき：原本を残し、控えがあれば控えから、なければはじめから */
+    function recover(raw, why) {
+      const b = readCandidate(KEYS.bak);
+      const store = b ? b.store : fresh();
+      const status = b ? 'recovered' : 'corrupt';
+      const issues = [{ level: 'repair', label: '保存データ', detail: why }];
+      if (!preserve([{ key: KEYS.broken, raw }])) { mode = 'protect'; return done(status, store, issues); }
+      return done(status, store, issues, { commit: write(store) });
+    }
+
+    function load() {
+      if (!backend) return done('unavailable', fresh());
+      let raw;
+      try { raw = backend.get(KEYS.main); } catch (e) { mode = 'unavailable'; return done('unavailable', fresh(), [], { error: String(e && e.message) }); }
+      lastRaw = raw;
+      if (raw == null) {
+        // 本体がない：はじめて開いた。控えだけ残っていれば（本体だけ消えた）控えから戻す
+        const b = readCandidate(KEYS.bak);
+        if (!b) return done('new', fresh());
+        return done('recovered', b.store, [{ level: 'repair', label: '保存データ', detail: '本体がない' }], { commit: write(b.store) });
+      }
+      const p = parse(raw);
+      if (p.error) return recover(raw, p.error);
+      if (!isObj(p.data)) return recover(raw, '形が違う');
+      const v = versionOf(p.data);
+      if (!isInt(v) || v < 1) return recover(raw, 'schemaVersion が不正');
+      if (v > SCHEMA_VERSION) {
+        // 新しいアプリで保存された形式：読めるところだけ使い、書き込まない（新しいアプリのデータを壊さない）
+        mode = 'incompatible';
+        const s = sanitize(p.data);
+        return done('incompatible', s.store, s.issues, { fromVersion: v });
+      }
+      let data;
+      try { data = migrate(p.data, v); } catch (e) { return recover(raw, '移行できない（' + e.message + '）'); }
+      const s = sanitize(data);
+      const repairs = s.issues.filter((x) => x.level === 'repair');
+      const keep = [];
+      if (v < SCHEMA_VERSION) keep.push({ key: KEYS.before(v), raw, optional: !repairs.length });
+      if (repairs.length) keep.push({ key: KEYS.broken, raw });
+      if (keep.length && !preserve(keep)) {
+        // 直したところがなければ、移行は項目を足すだけなので書き換えてよい（原本を残せなくても失うものはない）
+        if (pending.some((x) => !x.optional)) {
+          mode = 'protect';
+          return done(repairs.length ? 'repaired' : 'migrated', s.store, s.issues, { fromVersion: v });
+        }
+        pending = [];
+      }
+      const commit = v < SCHEMA_VERSION || repairs.length ? write(s.store) : null; // 移行・修理を本体に書く（二重に移行しない）
+      if (!repairs.length) refreshBak();
+      return done(repairs.length ? 'repaired' : v < SCHEMA_VERSION ? 'migrated' : 'ok', s.store, s.issues, { fromVersion: v, commit });
+    }
+
+    function save(store) {
+      if (mode !== 'ok') return (last = fail(mode));
+      let cur;
+      try { cur = backend.get(KEYS.main); } catch (e) { return (last = fail(classify(e), e)); }
+      if (cur !== lastRaw) { mode = 'conflict'; return (last = fail('conflict')); }
+      return (last = write(store));
+    }
+
+    /** ほかのタブが本体を書き換えたか（storage イベントで呼ぶ）。書き換えていたら以後は保存しない */
+    function checkExternal() {
+      if (mode !== 'ok') return false;
+      let cur;
+      try { cur = backend.get(KEYS.main); } catch (e) { return false; }
+      if (cur === lastRaw) return false;
+      mode = 'conflict';
+      return true;
+    }
+
+    /** バックアップの読み込み：今の本体を .prerestore に残してから、store で置き換える。
+     *  残せなければ置き換えない（今のデータが消えてしまうので）。ほかのタブが書き換えていたら置き換えない */
+    function replace(store) {
+      if (mode !== 'ok') return (last = fail(mode));
+      let cur;
+      try { cur = backend.get(KEYS.main); } catch (e) { return (last = fail(classify(e), e)); }
+      if (cur !== lastRaw) { mode = 'conflict'; return (last = fail('conflict')); }
+      if (cur != null) {
+        const r = put(KEYS.prerestore, cur);
+        if (!r.ok) return (last = Object.assign({ stage: 'prerestore' }, r));
+      }
+      return (last = write(store));
+    }
+
+    /** 本体以外のキー（KEYS.prerestore など）を読んで確かめた中身 { store, issues }。なければ null */
+    function peek(k) { return backend ? readCandidate(k) : null; }
+
+    /** protect：原本をもう一度残してみる。残せたら保存できるようになる */
+    function retryProtect() {
+      if (mode !== 'protect') return mode === 'ok';
+      if (preserve(pending)) mode = 'ok';
+      return mode === 'ok';
+    }
+    /** protect：原本を残さずに書き換えてよい（利用者が選んだとき） */
+    function allowOverwrite() {
+      if (mode !== 'protect') return;
+      pending = [];
+      mode = 'ok';
+    }
+
+    return {
+      load, save, replace, peek, checkExternal, retryProtect, allowOverwrite,
+      get mode() { return mode; },
+      status: () => ({ mode, last, pending: pending.map((x) => x.key), lastLength: lastRaw == null ? 0 : lastRaw.length }),
+    };
+  }
+
+  /** 対局を保存するときの印（どの版のエンジンの形か） */
+  function stampMatch(game, snap) {
+    if (snap) snap.engineVersion = ENGINE_VERSION[game];
+    return snap;
+  }
+
+  D.Storage = {
+    KEY, KEYS, SCHEMA_VERSION, ENGINE_VERSION, MIGRATIONS,
+    webBackend, memoryBackend, classify, migrate, sanitize, fresh, checkMatch, createRepository, stampMatch, cleanName,
+  };
+})();
+
+</script>
+<script>
+/* バックアップ（書き出し・読み込み）の中身：作る・確かめる・要約する
+ * 画面（DOM）から独立していて、テスト（tools/run_tests.js）でも同じものを動かす。
+ * 画面は backup-ui.js、本体の置き換え（今のデータを .prerestore に残してから）は storage.js の repo.replace。
+ *
+ * 形式（ファイル cards-table-backup-日付.json。中身は1行の JSON。コピーして貼り付けてもよい）
+ *   { format: 'cards-table-backup', version: 1, app: 'Cards Table', exportedAt: ISO 8601, storeSchemaVersion: 2,
+ *     data: { settings, rules, rating, match, sevens: { settings, rules, rating, match }, speed: { … } },
+ *     checksum: 'fnv1a32:…' }
+ *   version … このバックアップの形式の版。storeSchemaVersion … data の形（storage.js の schemaVersion）
+ *   checksum … data の JSON から計算。途中で切れた・書き換わったことに気づくため（改ざん防止や本人確認ではない）
+ * 入れないもの：オンラインの本人ID（daifugo.cid）・オンラインのレートの控え（正しい値はサーバー）・チャット・
+ *   最後に開いたタブ・ホーム画面の案内など、この端末だけの情報。AI戦のレートは端末の記録で、だれでも変えられる前提
+ */
+(function () {
+  'use strict';
+  const D = (globalThis.DFG = globalThis.DFG || {});
+
+  const FORMAT = 'cards-table-backup';
+  const VERSION = 1;
+  const MAX_CHARS = 1024 * 1024; // 読み込む上限（ふつうは数十KB）
+  const GAMES = ['daifugo', 'sevens', 'speed'];
+  const PARTS = ['settings', 'rules', 'rating', 'match']; // ゲームごとに入れるもの
+  /** この端末だけのもの（読み込んでも今の値のまま） */
+  const DEVICE_ONLY = ['onlineRatings', 'tab', 'installTipOff', 'backupAt'];
+
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const isInt = (v) => Number.isInteger(v);
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+
+  /** 決まった項目だけを取り出す（知らない項目・__proto__ などは入れない） */
+  function pick(src) {
+    const o = {};
+    if (!isObj(src)) return o;
+    for (const k of PARTS) if (src[k] !== undefined) o[k] = src[k];
+    for (const g of ['sevens', 'speed']) {
+      const s = src[g];
+      if (s === undefined) continue;
+      if (!isObj(s)) { o[g] = s; continue; } // 形が違うものは、そのまま確認（sanitize）に回して知らせる
+      o[g] = {};
+      for (const k of PARTS) if (s[k] !== undefined) o[g][k] = s[k];
+    }
+    return o;
+  }
+
+  /** FNV-1a（32bit）。data の JSON の文字（UTF-16）から */
+  function checksum(data) {
+    const s = JSON.stringify(data);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return 'fnv1a32:' + h.toString(16).padStart(8, '0');
+  }
+
+  const two = (n) => String(n).padStart(2, '0');
+  function fileName(now) {
+    const d = new Date(now);
+    return 'cards-table-backup-' + d.getFullYear() + two(d.getMonth() + 1) + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes()) + '.json';
+  }
+
+  /** 書き出す：{ text, name, env } */
+  function create(store, now) {
+    const data = clone(pick(store));
+    const env = {
+      format: FORMAT, version: VERSION, app: 'Cards Table', exportedAt: new Date(now).toISOString(),
+      storeSchemaVersion: D.Storage.SCHEMA_VERSION, data, checksum: checksum(data),
+    };
+    return { text: JSON.stringify(env), name: fileName(now), env };
+  }
+
+  /** 読み込めないときの理由（画面に出す文） */
+  const MESSAGES = {
+    empty: 'ファイルを選ぶか、書き出した内容を貼り付けてください。',
+    'too-big': 'ファイルが大きすぎます。Cards Table で書き出したバックアップを選んでください。',
+    'not-json': 'バックアップとして読めませんでした。書き出した内容が全部そろっているか確かめてください。',
+    'not-backup': 'Cards Table のバックアップではありません。',
+    newer: '新しいバージョンのアプリで作られたバックアップです。アプリを更新してから読み込んでください。',
+    broken: 'バックアップが壊れています（途中で切れた・書き換わった）。もう一度書き出してください。',
+    invalid: 'バックアップの中に読めない部分があります',
+  };
+  const bad = (code, detail) => ({ ok: false, code, detail, message: MESSAGES[code] + (detail ? '：' + detail : '') });
+
+  /**
+   * 読み込む前の確認。current は今の store（この端末だけのものを引き継ぐ）
+   * 問題がなければ { ok: true, store（保存する形）, exportedAt }。だめなら { ok: false, code, message }（今のデータは変えない）
+   */
+  function read(text, current) {
+    if (typeof text !== 'string' || !text.trim()) return bad('empty');
+    if (text.length > MAX_CHARS) return bad('too-big');
+    let env;
+    try { env = JSON.parse(text.replace(/^﻿/, '').trim()); } catch (e) { return bad('not-json'); }
+    if (!isObj(env) || env.format !== FORMAT || !isInt(env.version) || env.version < 1) return bad('not-backup');
+    if (env.version > VERSION) return bad('newer');
+    if (!isObj(env.data) || typeof env.checksum !== 'string' || env.checksum !== checksum(env.data)) return bad('broken');
+    const sv = env.storeSchemaVersion;
+    if (!isInt(sv) || sv < 1) return bad('broken');
+    if (sv > D.Storage.SCHEMA_VERSION) return bad('newer');
+    let s;
+    try {
+      const data = pick(env.data);
+      if (sv > 1) data.schemaVersion = sv;
+      s = D.Storage.sanitize(D.Storage.migrate(data, sv));
+    } catch (e) {
+      return bad('not-json');
+    }
+    const repairs = s.issues.filter((x) => x.level === 'repair');
+    if (repairs.length) return bad('invalid', Array.from(new Set(repairs.map((x) => x.label))).join('・'));
+    return { ok: true, store: carry(s.store, current), exportedAt: typeof env.exportedAt === 'string' ? env.exportedAt : null };
+  }
+
+  /** 置き換える中身 next に、この端末だけのもの（オンラインのレートの控え・タブなど）と書いた回数を今のまま引き継ぐ */
+  function carry(next, current) {
+    for (const k of DEVICE_ONLY) {
+      if (current && current[k] !== undefined) next[k] = clone(current[k]);
+      else delete next[k];
+    }
+    if (!next.onlineRatings) next.onlineRatings = {};
+    next.revision = current && isInt(current.revision) ? current.revision : 0; // 書いた回数は今の続きから
+    delete next.savedAt;
+    return next;
+  }
+
+  /** 画面に出す要約：名前・ゲームごとのAI戦のレートと途中の対局 */
+  function summary(store) {
+    const games = {};
+    for (const g of GAMES) {
+      const sec = g === 'daifugo' ? store : store[g] || {};
+      const rt = sec.rating || {};
+      const m = sec.match;
+      games[g] = {
+        r: rt.r, matches: rt.matches || 0,
+        match: m && !m.matchOver && m.phase !== 'idle' ? { gameNo: m.gameNo, maxGames: m.maxGames || 0, rated: !!m.rated, wins: g === 'speed' ? m.players.map((p) => p.wins) : null } : null,
+      };
+    }
+    return { name: (store.settings && store.settings.name) || 'あなた', games };
+  }
+
+  D.Backup = { FORMAT, VERSION, MAX_CHARS, MESSAGES, DEVICE_ONLY, create, read, carry, summary, checksum, fileName, pick };
+})();
+
+</script>
+<script>
 /* 共通：保存・個人設定・画面の切り替え・画面の部品・レート戦・試合結果・ルールブックの枠
  * どのゲーム（大富豪・七並べ・スピード）からも使う */
 (function () {
   'use strict';
   const D = globalThis.DFG;
-  const A = D.Art, SND = D.Sound, UI = D.UI, RT = D.Rating, RU = D.Rules;
+  const A = D.Art, SND = D.Sound, UI = D.UI, RT = D.Rating;
   const $ = (id) => document.getElementById(id);
   const esc = UI.esc;
 
   // ─────────────────────────────────────────────
-  // 保存（この端末のブラウザだけ）。キーは大富豪だけだった頃のまま
+  // 保存（この端末のブラウザだけ）。キーは大富豪だけだった頃のまま（daifugo.v1）
+  // 中身の確認・形式の移行・壊れていたときの復旧・書き込みの結果は storage.js
+  //   store.settings / rules / rating / match … 大富豪（settings は全ゲーム共通の個人設定も）
+  //   store.sevens / store.speed … { settings, rules, rating, match }
+  //   store.onlineRatings … オンラインのレート（サーバーから届いた値の控え）
+  // 以前の「履歴」（出したカードの記録 store.log）はカウンティングできないようにやめた。読み込むときにも捨てる
   // ─────────────────────────────────────────────
-  const STORE_KEY = 'daifugo.v1';
-  const DEFAULT_SETTINGS = { players: 4, level: 'normal', games: 10, speed: 'normal', back: 'red', sound: true, bgm: true, bgmVol: 'low', autoPass: true, showPlayable: true, name: 'あなた' };
-  const newRating = () => ({ r: RT.START, matches: 0, best: RT.START, hist: [] });
-  let store = {};
-  try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { store = {}; }
-  // 大富豪（以前からの形のまま）
-  store.settings = Object.assign({}, DEFAULT_SETTINGS, store.settings || {});
-  store.rules = store.rules ? RU.migrate(store.rules) : Object.assign({}, RU.MINE);
-  store.rating = Object.assign(newRating(), store.rating || {});
-  delete store.log; // 以前の「履歴」（出したカードの記録）。カウンティングできないように履歴はなくした
-  // 七並べ・スピード
-  store.sevens = Object.assign({}, store.sevens);
-  store.sevens.settings = Object.assign({ players: 4, level: 'normal', games: 10 }, store.sevens.settings);
-  store.sevens.rules = D.SevensRules.normalize(store.sevens.rules);
-  store.sevens.rating = Object.assign(newRating(), store.sevens.rating || {});
-  store.speed = Object.assign({}, store.speed);
-  store.speed.settings = Object.assign({ level: 'normal', games: 3 }, store.speed.settings);
-  store.speed.rules = D.SpeedRules.normalize(store.speed.rules);
-  store.speed.rating = Object.assign(newRating(), store.speed.rating || {});
-  // オンラインのレート（サーバーから届いた値の控え）
-  store.onlineRatings = store.onlineRatings || {};
-  if (store.onlineRating && !store.onlineRatings.daifugo) store.onlineRatings.daifugo = store.onlineRating;
+  const ST = D.Storage;
+  const repo = ST.createRepository(ST.webBackend());
+  const boot = repo.load();
+  const store = boot.store;
   const settings = store.settings;
 
+  /** 保存する。{ ok, reason } を返す。保存できなければ画面の上に知らせる（対局はそのまま続けられる） */
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* 保存できなくても続行 */ }
+    const r = repo.save(store);
+    noteSave(r);
+    return r;
+  }
+
+  /** 途中の対局を保存する。make() は保存する形（各エンジンの serialize）。
+   *  レートの更新（recordRating）は保存しないので、対局と一緒にこの1回で書く（片方だけ残らない） */
+  function saveMatch(game, make) {
+    let snap;
+    try { snap = ST.stampMatch(game, make()); } catch (e) {
+      const r = { ok: false, reason: 'serialize', error: String((e && e.message) || e) };
+      noteSave(r);
+      return r;
+    }
+    if (game === 'daifugo') store.match = snap;
+    else store[game].match = snap;
+    return save();
+  }
+
+  // ── バックアップ（画面は backup-ui.js）──
+  const RESTORED = 'daifugo.restored'; // 読み込んだあと再読み込みしたときの知らせ（sessionStorage）
+  /** バックアップの中身で置き換える（今のデータは .prerestore に残る）。成功したら画面を読み込み直す。kind：'import' / 'undo' */
+  function replaceStore(next, kind) {
+    const r = repo.replace(next);
+    if (r.ok) {
+      try { sessionStorage.setItem(RESTORED, kind || 'import'); } catch (e) { /* 知らせが出ないだけ */ }
+      location.reload();
+    }
+    return r;
+  }
+  /** バックアップを読み込む前のデータ（{ store, issues } か null） */
+  const prerestore = () => repo.peek(ST.KEYS.prerestore);
+  /** 書き出した日時を覚える（マイページに出す） */
+  function markBackup() { store.backupAt = Date.now(); save(); }
+
+  // ── 保存の知らせ（画面の上の帯 #save-note）。対局のダイアログ（#overlay）とは別なので、対局の操作をじゃましない ──
+  const SAVE_MSG = {
+    quota: 'この端末に保存できていません（空き容量が足りないか、プライベートブラウズです）',
+    denied: 'この端末に保存できていません（このブラウザでは保存が許可されていません）',
+    error: 'この端末に保存できていません',
+    verify: 'この端末に保存できていません',
+    serialize: 'この端末に保存できていません（保存する形にできませんでした）',
+    unavailable: 'このブラウザでは保存が使えません。ページを閉じると、対局やレートは残りません',
+    conflict: '別のタブ（ウィンドウ）で保存データが更新されました。上書きしないよう、このタブでは保存を止めています',
+    incompatible: '新しいバージョンのアプリで保存されたデータです。データを守るため、このページでは保存しません',
+    protect: '保存データの一部が読めず、元のデータの控えも残せませんでした（空き容量不足）。元のデータを守るため保存を止めています。「このまま保存」を選ぶと、読めなかった部分は失われます',
+  };
+  const note = { reason: null, timer: 0 };
+
+  function showNote(kind, text, actions, autoHide) {
+    const el = $('save-note');
+    if (!el) return;
+    clearTimeout(note.timer);
+    el.className = 'save-note ' + kind;
+    el.setAttribute('role', kind === 'err' ? 'alert' : 'status');
+    el.innerHTML = '<p>' + esc(text) + '</p>' +
+      actions.map((a, i) => '<button type="button" class="btn btn-sm ' + (i ? 'btn-ghost' : 'btn-gold') + '" data-i="' + i + '">' + esc(a.label) + '</button>').join('') +
+      '<button type="button" class="sn-close" aria-label="閉じる">' + A.icon('close', 16) + '</button>';
+    el.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => actions[+b.dataset.i].run()));
+    el.querySelector('.sn-close').addEventListener('click', hideNote);
+    el.hidden = false;
+    if (autoHide) note.timer = setTimeout(hideNote, autoHide);
+  }
+  function hideNote() { clearTimeout(note.timer); const el = $('save-note'); if (el) el.hidden = true; }
+
+  function retrySave() {
+    const r = save();
+    if (!r.ok) noteSave(r, '（もう一度試しましたが、保存できませんでした）');
+  }
+  /** 保存できないあいだも、いまの記録をファイルに書き出せる（対局のダイアログが開いているときは開かない） */
+  function exportFromNote() {
+    if (!$('overlay').hidden) { UI.toast('いまのダイアログを閉じてから「書き出す」を押してください', 3000); return; }
+    if (D.BackupUI) D.BackupUI.openExport();
+  }
+  function noteActions(reason) {
+    if (reason === 'conflict' || reason === 'incompatible') return [{ label: '再読み込み', run: () => location.reload() }];
+    const out = { label: '書き出す', run: exportFromNote };
+    if (reason === 'protect') {
+      return [{ label: 'もう一度試す', run: () => { repo.retryProtect(); retrySave(); } },
+        { label: 'このまま保存', run: () => { repo.allowOverwrite(); retrySave(); } }, out];
+    }
+    if (reason === 'unavailable') return [out];
+    return [{ label: 'もう一度保存', run: retrySave }, out];
+  }
+  /** 保存の結果を知らせる。同じ理由の失敗は続けて出さない（閉じたらそのまま）。失敗のあと保存できたら「保存できました」 */
+  function noteSave(r, again) {
+    if (r.ok) {
+      if (note.reason) { note.reason = null; showNote('ok', '保存できました', [], 2500); }
+      return;
+    }
+    if (!again && note.reason === r.reason) return;
+    note.reason = r.reason;
+    showNote('err', (SAVE_MSG[r.reason] || SAVE_MSG.error) + (again || ''), noteActions(r.reason));
+  }
+
+  /** 起動したときの読み込みの結果を知らせる（ふつうに読めた・古い形式から移行しただけなら何も出さない） */
+  function noteBoot() {
+    const b = boot;
+    if (b.mode !== 'ok') return noteSave({ ok: false, reason: b.mode });
+    if (b.commit && !b.commit.ok) return noteSave(b.commit);
+    const kept = '（読めなかったデータは、この端末に残してあります）';
+    let msg = '', restored = null;
+    try { restored = sessionStorage.getItem(RESTORED); sessionStorage.removeItem(RESTORED); } catch (e) { /* 使えない環境 */ }
+    if (restored === 'import') msg = 'バックアップを読み込みました。読み込む前のデータは、マイページの「1つ前のデータに戻す」で戻せます';
+    else if (restored === 'undo') msg = '1つ前のデータに戻しました';
+    else if (b.status === 'recovered') msg = '保存データが読めなかったため、前回正常に読めたデータに戻しました' + kept;
+    else if (b.status === 'corrupt') msg = '保存データが読めなかったため、はじめから始めます' + kept;
+    else if (b.status === 'repaired') {
+      const labels = Array.from(new Set(b.issues.filter((x) => x.level === 'repair').map((x) => x.label)));
+      msg = '保存データの一部が読めなかったため、直しました：' + labels.join('・') + kept;
+    }
+    if (msg) showNote('info', msg, [], 15000);
   }
 
   // ─────────────────────────────────────────────
@@ -7054,6 +7918,8 @@ a.btn { text-decoration: none; }
   const fmtExp = (v) => (Math.abs(v) < 0.05 ? '±0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1));
   const pct = (p) => Math.round(p * 100) + '%';
 
+  /** レートを変える。ここでは保存しない：呼んだ側が、対局の状態（結果を付けた試合・棄権で消した試合）と一緒に1回で保存する
+   *  （レートだけ保存されて試合が残ると、つづきから遊んで同じ試合のレートがもう一度変わってしまう） */
   function recordRating(game, delta, entry) {
     const rt = ratingOf(game);
     const before = rt.r;
@@ -7062,7 +7928,6 @@ a.btn { text-decoration: none; }
     rt.best = Math.max(rt.best, rt.r);
     rt.hist.push(Object.assign({ at: Date.now(), before, after: rt.r, d: delta }, entry));
     if (rt.hist.length > 50) rt.hist.splice(0, rt.hist.length - 50);
-    save();
     return { before, after: rt.r };
   }
 
@@ -7238,12 +8103,18 @@ a.btn { text-decoration: none; }
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bookOpen() && $('overlay').hidden) closeBook(); });
     document.querySelectorAll('[data-sound-btn]').forEach((b) => b.addEventListener('click', toggleSound));
     applySettings();
+    // ほかのタブ（ウィンドウ）が保存データを書き換えたら、このタブでは保存を止めて知らせる（黙って上書きしない）
+    addEventListener('storage', (e) => {
+      if (e.key !== null && e.key !== ST.KEY) return;
+      if (repo.checkExternal()) noteSave({ ok: false, reason: 'conflict' });
+    });
+    noteBoot();
   }
 
   D.Games = D.Games || {};
   D.Books = D.Books || {};
   D.Common = {
-    store, settings, save, applySettings, toggleSound, playerName, LEVEL_LABEL, SPEEDS,
+    store, settings, save, saveMatch, saveStatus: () => repo.status(), replaceStore, prerestore, markBackup, applySettings, toggleSound, playerName, LEVEL_LABEL, SPEEDS,
     showScreen, onShow, visible, seg, toggle, row, section,
     ratingOf, recordRating, applyRatedLocal, abandonRatedLocal, abandonNote, rateNote, rateBoxHTML, animateRate, fmtExp, pct,
     openRatedDialog, askAbandon, finalHTML, ptsHTML,
@@ -7431,6 +8302,211 @@ a.btn { text-decoration: none; }
     set onChange(f) { onChange = f; },
     get canPrompt() { return !!deferred; },
   };
+})();
+
+</script>
+<script>
+/* バックアップの画面：書き出す・読み込む・1つ前のデータに戻す
+ * マイページの「データの引き継ぎ」と、保存できないときの帯（common.js）から開く。中身の作り方・確かめ方は backup.js */
+(function () {
+  'use strict';
+  const D = globalThis.DFG;
+  const CM = D.Common, UI = D.UI, BK = D.Backup, RT = D.Rating, SND = D.Sound;
+  const $ = (id) => document.getElementById(id);
+  const esc = UI.esc;
+  const GAMES = ['daifugo', 'sevens', 'speed'];
+  const platform = () => (D.Install ? D.Install.platform : 'desktop');
+
+  const two = (n) => String(n).padStart(2, '0');
+  function fmtDate(t) {
+    const d = new Date(t);
+    return isNaN(d) ? '' : d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + two(d.getMinutes());
+  }
+  function matchText(g, m) {
+    if (!m) return 'なし';
+    if (g === 'speed') return (m.rated ? 'レート戦 ' : '') + m.wins.join(' - ');
+    return (m.rated ? 'レート戦 ' : '') + '第' + m.gameNo + (m.maxGames ? '/' + m.maxGames : '') + 'ゲーム';
+  }
+  function button(label, cls, onClick) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-sm ' + cls;
+    b.textContent = label;
+    b.addEventListener('click', () => { SND.play('select'); onClick(); });
+    return b;
+  }
+  const lastText = () => (CM.store.backupAt ? '最後に書き出した日：' + fmtDate(CM.store.backupAt) : 'AI戦のレート・設定・ルール・途中の対局を1つのファイルに');
+
+  // ─────────────────────────────────────────────
+  // 書き出す
+  // ─────────────────────────────────────────────
+  function done(msg) {
+    CM.markBackup();
+    const el = $('bk-last');
+    if (el) el.textContent = lastText();
+    UI.toast(msg, 3500);
+  }
+
+  function openExport() {
+    const b = BK.create(CM.store, Date.now());
+    const sum = BK.summary(CM.store);
+    let file = null;
+    try { file = new File([b.text], b.name, { type: 'application/json' }); } catch (e) { file = null; }
+    let canShare = false;
+    try { canShare = !!(file && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { canShare = false; }
+    // iPhone は共有シートの「"ファイル"に保存」が確実（ホーム画面のアプリでダウンロードのリンクを開くと戻れなくなることがある）
+    const shareFirst = canShare && platform() === 'ios';
+    const playing = GAMES.filter((g) => sum.games[g].match).map((g) => RT.cfg(g).label);
+    const btns = (shareFirst ? '<button class="btn btn-gold" type="button" id="bk-share">共有・ファイルに保存</button>'
+      : '<button class="btn btn-gold" type="button" id="bk-dl">ファイルに保存</button>' + (canShare && platform() === 'android' ? '<button class="btn btn-ghost" type="button" id="bk-share">共有</button>' : '')) +
+      '<button class="btn btn-ghost" type="button" id="bk-copy">コピー</button><button class="btn btn-ghost" type="button" id="bk-close">閉じる</button>';
+    UI.openDialog('<h3>書き出す</h3>' +
+      '<p>この端末の記録を1つのファイルにします。別の端末・ブラウザ・ホーム画面のアプリで「読み込む」と、続きから遊べます。</p>' +
+      '<ul class="bk-list"><li>AI戦のレート：' + GAMES.map((g) => esc(RT.cfg(g).label) + ' <b>' + sum.games[g].r + '</b>').join('・') + '</li>' +
+      '<li>設定・ルール（名前「' + esc(sum.name) + '」）</li><li>途中の対局：' + (playing.length ? esc(playing.join('・')) : 'なし') + '</li></ul>' +
+      '<p class="bk-note">オンラインのIDとオンラインのレートは入りません（読み込んだ先の端末のものになります）。</p>' +
+      '<div class="btns">' + btns + '</div>' +
+      '<div id="bk-copybox" hidden><p class="bk-note">コピーできませんでした。下の文字を全部選んでコピーしてください。</p>' +
+      '<textarea class="name-input wide bk-text" id="bk-out" rows="3" readonly></textarea></div>', { onBackdrop: UI.closeDialog });
+    $('bk-close').addEventListener('click', UI.closeDialog);
+    if ($('bk-share')) {
+      $('bk-share').addEventListener('click', () => {
+        navigator.share({ files: [file], title: 'Cards Table のバックアップ' }).then(() => done('書き出しました'), (e) => {
+          if (e && e.name === 'AbortError') return; // 共有をやめた
+          UI.toast('共有できませんでした。「コピー」を使ってください', 3500);
+        });
+      });
+    }
+    if ($('bk-dl')) {
+      $('bk-dl').addEventListener('click', () => {
+        try {
+          const url = URL.createObjectURL(new Blob([b.text], { type: 'application/json' }));
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = b.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
+          done('「' + b.name + '」を保存しました（ダウンロード）');
+        } catch (e) {
+          UI.toast('ファイルに保存できませんでした。「コピー」を使ってください', 3500);
+        }
+      });
+    }
+    $('bk-copy').addEventListener('click', () => {
+      const manual = () => {
+        $('bk-copybox').hidden = false;
+        const ta = $('bk-out');
+        ta.value = b.text;
+        ta.focus();
+        ta.setSelectionRange(0, ta.value.length);
+      };
+      if (!navigator.clipboard || !navigator.clipboard.writeText) { manual(); return; }
+      navigator.clipboard.writeText(b.text).then(() => done('コピーしました。読み込む側の「読み込む」に貼り付けてください'), manual);
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  // 読み込む・1つ前のデータに戻す
+  // ─────────────────────────────────────────────
+  const REPLACE_ERR = {
+    conflict: '別のタブ（ウィンドウ）で保存データが更新されています。ページを再読み込みしてから、もう一度読み込んでください。',
+    quota: '空き容量が足りないため、いまのデータの控えを残せませんでした。いまのデータはそのままです。',
+    protect: 'いまの保存データの一部が読めず、その控えも残せていないため、読み込めません。画面の上の知らせから先に保存を直してください。',
+    incompatible: '新しいバージョンのアプリのデータがあるため、このページでは読み込めません。',
+    unavailable: 'このブラウザでは保存が使えないため、読み込めません。',
+    denied: 'このブラウザでは保存が許可されていないため、読み込めません。',
+  };
+  function showErr(msg) {
+    const e = $('bk-err');
+    if (!e) return;
+    e.textContent = msg;
+    e.hidden = false;
+    SND.play('error');
+  }
+
+  function openImport() {
+    if (D.OnlineClient && D.OnlineClient.cur) { UI.toast('オンラインの部屋にいる間は読み込めません。部屋を出てから読み込んでください', 3500); return; }
+    UI.openDialog('<h3>読み込む</h3>' +
+      '<p>書き出したバックアップのファイルを選ぶか、コピーした内容を貼り付けてください。</p>' +
+      '<div class="btns"><button class="btn btn-gold" type="button" id="bk-pick">ファイルを選ぶ</button></div>' +
+      '<input type="file" id="bk-file" accept=".json,application/json,text/plain" hidden>' +
+      '<label class="bk-paste"><span>または貼り付け</span><textarea class="name-input wide bk-text" id="bk-text" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea></label>' +
+      '<p class="bk-err" id="bk-err" role="alert" hidden></p>' +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="bk-cancel">やめる</button><button class="btn btn-gold" type="button" id="bk-check">確かめる</button></div>',
+    { onBackdrop: UI.closeDialog });
+    $('bk-cancel').addEventListener('click', UI.closeDialog);
+    $('bk-pick').addEventListener('click', () => $('bk-file').click());
+    $('bk-file').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (f.size > BK.MAX_CHARS * 4) { showErr(BK.MESSAGES['too-big']); return; }
+      const rd = new FileReader();
+      rd.onload = () => check(String(rd.result));
+      rd.onerror = () => showErr('ファイルを読めませんでした。');
+      rd.readAsText(f);
+    });
+    $('bk-check').addEventListener('click', () => check($('bk-text').value));
+  }
+
+  function check(text) {
+    const r = BK.read(text, CM.store);
+    if (!r.ok) { showErr(r.message); return; }
+    openPreview(r.store, { kind: 'import', when: r.exportedAt ? fmtDate(r.exportedAt) + ' に書き出したバックアップです。' : '' });
+  }
+
+  function openUndo() {
+    const c = CM.prerestore();
+    if (!c) { UI.toast('1つ前のデータはありません'); return; }
+    const when = c.store.savedAt ? fmtDate(c.store.savedAt) + ' まで使っていたデータです。' : '';
+    openPreview(BK.carry(c.store, CM.store), { kind: 'undo', when });
+  }
+
+  /** いまの内容と、置き換えたあとの内容を並べて確かめてから置き換える */
+  function openPreview(next, opt) {
+    const undo = opt.kind === 'undo';
+    const a = BK.summary(CM.store), b = BK.summary(next);
+    // x・y は表示する HTML（esc 済み）
+    const row = (label, x, y) => '<tr><th>' + esc(label) + '</th><td>' + x + '</td><td' + (x !== y ? ' class="chg"' : '') + '>' + y + '</td></tr>';
+    const rate = (v) => v.r + '<small>' + v.matches + '試合</small>';
+    let rows = row('名前', esc(a.name), esc(b.name));
+    for (const g of GAMES) rows += row(RT.cfg(g).label + 'のレート', rate(a.games[g]), rate(b.games[g]));
+    for (const g of GAMES) rows += row(RT.cfg(g).label + 'の途中', esc(matchText(g, a.games[g].match)), esc(matchText(g, b.games[g].match)));
+    UI.openDialog('<h3>' + (undo ? '1つ前に戻しますか？' : '読み込みますか？') + '</h3>' +
+      (opt.when ? '<p>' + esc(opt.when) + '</p>' : '') +
+      '<div class="score-wrap"><table class="bk-cmp"><thead><tr><th></th><th>いま</th><th>' + (undo ? '戻したあと' : '読み込んだあと') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="bk-note">いまの設定・ルール・AI戦のレート・途中の対局は、すべてこの内容に置き換わります。いまのデータは控えとして残すので、マイページの「1つ前のデータに戻す」で戻せます。オンラインのIDとレートは、この端末のものをそのまま使います。</p>' +
+      '<p class="bk-err" id="bk-err" role="alert" hidden></p>' +
+      '<div class="btns"><button class="btn btn-ghost" type="button" id="bk-no">やめる</button><button class="btn btn-gold" type="button" id="bk-yes">' + (undo ? '戻す' : '読み込む') + '</button></div>',
+    { onBackdrop: UI.closeDialog });
+    $('bk-no').addEventListener('click', UI.closeDialog);
+    $('bk-yes').addEventListener('click', () => {
+      if (D.OnlineClient && D.OnlineClient.cur) { showErr('オンラインの部屋にいる間は読み込めません。'); return; }
+      const r = CM.replaceStore(next, opt.kind); // 成功したらページを読み込み直す
+      if (!r.ok) showErr(REPLACE_ERR[r.reason] || '読み込めませんでした（' + r.reason + '）。いまのデータはそのままです。');
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  // マイページの「データの引き継ぎ」
+  // ─────────────────────────────────────────────
+  function mySection() {
+    const sec = CM.section('データの引き継ぎ', 'バックアップ');
+    const ex = CM.row('書き出す', lastText(), button('書き出す', 'btn-gold', openExport));
+    const desc = ex.querySelector('.row-desc');
+    if (desc) desc.id = 'bk-last';
+    sec.panel.appendChild(ex);
+    sec.panel.appendChild(CM.row('読み込む', '別の端末・ブラウザ・ホーム画面のアプリで書き出したものを読み込みます', button('読み込む', 'btn-ghost', openImport)));
+    if (CM.prerestore()) sec.panel.appendChild(CM.row('1つ前のデータに戻す', 'バックアップを読み込む前のデータに戻せます', button('戻す', 'btn-ghost', openUndo)));
+    const hint = document.createElement('p');
+    hint.className = 'bk-hint';
+    hint.textContent = 'iPhone では Safari とホーム画面のアプリで保存場所が別です。オンラインのIDとオンラインのレートは引き継がれません。';
+    sec.panel.appendChild(hint);
+    return sec.s;
+  }
+
+  D.BackupUI = { openExport, openImport, openUndo, mySection };
 })();
 
 </script>
@@ -8115,6 +9191,9 @@ a.btn { text-decoration: none; }
     st.panel.appendChild(CM.row('出せるカードを明るく表示', '', CM.toggle('opt-playable', s.showPlayable, (v) => set('showPlayable', v), false, '出せるカードを表示')));
     wrap.appendChild(st.s);
 
+    // データの引き継ぎ（書き出す・読み込む）
+    if (D.BackupUI) wrap.appendChild(D.BackupUI.mySection());
+
     const ins = D.Install.mySection();
     if (ins) wrap.appendChild(ins);
 
@@ -8374,10 +9453,7 @@ a.btn { text-decoration: none; }
 
   function persist() {
     if (!S || onlineRoom()) return; // オンライン対戦の状態はサーバーが持つ
-    try {
-      store.match = E.serialize(S);
-      save();
-    } catch (e) { /* 保存できなくても続行 */ }
+    CM.saveMatch('daifugo', () => E.serialize(S)); // 保存できなければ画面の上に知らせる（対局は続けられる）
     saveHot();
   }
 
@@ -9266,7 +10342,7 @@ a.btn { text-decoration: none; }
 
   function persist() {
     if (!S || onlineRoom()) return;
-    try { ss.match = SV.serialize(S); CM.save(); } catch (e) { /* 保存できなくても続行 */ }
+    CM.saveMatch('sevens', () => SV.serialize(S)); // 保存できなければ画面の上に知らせる（対局は続けられる）
   }
 
   function stopLoop() {
@@ -10073,7 +11149,7 @@ a.btn { text-decoration: none; }
 
   function persist() {
     if (!S || onlineRoom()) return;
-    try { const o = SP.serialize(S); delete o.clock; ss.match = o; CM.save(); } catch (e) { /* 保存できなくても続行 */ }
+    CM.saveMatch('speed', () => { const o = SP.serialize(S); delete o.clock; return o; }); // 時計は保存しない（再開したら組み直す）
   }
 
   // ─────────────────────────────────────────────
