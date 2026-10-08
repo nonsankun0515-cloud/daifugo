@@ -616,5 +616,7 @@
     cur.msgs.push('確認した局面 ' + n);
   });
 
+  // backup_tests.js でも使う
+  globalThis.STORAGE_FIX = { faulty, repoOf, quotaErr, fixture0925, fixture0926, fixture0927, daifugoMid, sevensMid, speedMid, snapDaifugo, snapSevens, snapSpeed, canon };
   globalThis.STORAGE_TEST_DONE = { pass: lines.filter((l) => l.ok).length, total: lines.length, failed: lines.filter((l) => !l.ok).map((l) => l.name + ': ' + l.msgs.join(' | ')) };
 })();

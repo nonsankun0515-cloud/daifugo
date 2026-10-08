@@ -127,6 +127,9 @@
     st.panel.appendChild(CM.row('出せるカードを明るく表示', '', CM.toggle('opt-playable', s.showPlayable, (v) => set('showPlayable', v), false, '出せるカードを表示')));
     wrap.appendChild(st.s);
 
+    // データの引き継ぎ（書き出す・読み込む）
+    if (D.BackupUI) wrap.appendChild(D.BackupUI.mySection());
+
     const ins = D.Install.mySection();
     if (ins) wrap.appendChild(ins);
 

@@ -6,6 +6,7 @@
  *   daifugo.v1.bak     … 最後に問題なく読めた本体の控え（起動のたびに更新）。本体が読めないときはここから戻す
  *   daifugo.v1.s1      … 形式の番号がない頃（schemaVersion 1）の原本。移行して書き換える前に残す
  *   daifugo.v1.broken  … 壊れていた・一部を直した本体の原本。書き換える前に残す
+ *   daifugo.v1.prerestore … バックアップを読み込む直前の本体（マイページの「1つ前のデータに戻す」で使う）
  *   （daifugo.cid はオンラインの本人IDで net.js が持つ。ここでは扱わない）
  *
  * 形式（schemaVersion。アプリのバージョンとは別の数字）
@@ -25,7 +26,7 @@
   const D = (globalThis.DFG = globalThis.DFG || {});
 
   const KEY = 'daifugo.v1';
-  const KEYS = { main: KEY, bak: KEY + '.bak', broken: KEY + '.broken', before: (v) => KEY + '.s' + v };
+  const KEYS = { main: KEY, bak: KEY + '.bak', broken: KEY + '.broken', prerestore: KEY + '.prerestore', before: (v) => KEY + '.s' + v };
   const SCHEMA_VERSION = 2;
   /** 途中の対局（serialize した形）の版。エンジンの保存の形を変えたら上げて、読み込みの確認を足す */
   const ENGINE_VERSION = { daifugo: 1, sevens: 1, speed: 1 };
@@ -249,6 +250,7 @@
     if (!o.onlineRatings.daifugo && src.onlineRating !== undefined) Object.assign(o.onlineRatings, onlineOf({ daifugo: src.onlineRating }, c));
     if (o.tab !== undefined && !TABS.includes(o.tab)) { issue(c, 'fix', '最後に開いたタブ'); delete o.tab; }
     if (o.installTipOff !== undefined && !(isNum(o.installTipOff) && o.installTipOff >= 0)) { issue(c, 'fix', 'ホーム画面に追加の案内'); delete o.installTipOff; }
+    if (o.backupAt !== undefined && !(isNum(o.backupAt) && o.backupAt >= 0)) { issue(c, 'fix', '最後に書き出した日時'); delete o.backupAt; }
     return { store: o, issues: c.issues };
   }
 
@@ -516,6 +518,23 @@
       return true;
     }
 
+    /** バックアップの読み込み：今の本体を .prerestore に残してから、store で置き換える。
+     *  残せなければ置き換えない（今のデータが消えてしまうので）。ほかのタブが書き換えていたら置き換えない */
+    function replace(store) {
+      if (mode !== 'ok') return (last = fail(mode));
+      let cur;
+      try { cur = backend.get(KEYS.main); } catch (e) { return (last = fail(classify(e), e)); }
+      if (cur !== lastRaw) { mode = 'conflict'; return (last = fail('conflict')); }
+      if (cur != null) {
+        const r = put(KEYS.prerestore, cur);
+        if (!r.ok) return (last = Object.assign({ stage: 'prerestore' }, r));
+      }
+      return (last = write(store));
+    }
+
+    /** 本体以外のキー（KEYS.prerestore など）を読んで確かめた中身 { store, issues }。なければ null */
+    function peek(k) { return backend ? readCandidate(k) : null; }
+
     /** protect：原本をもう一度残してみる。残せたら保存できるようになる */
     function retryProtect() {
       if (mode !== 'protect') return mode === 'ok';
@@ -530,7 +549,7 @@
     }
 
     return {
-      load, save, checkExternal, retryProtect, allowOverwrite,
+      load, save, replace, peek, checkExternal, retryProtect, allowOverwrite,
       get mode() { return mode; },
       status: () => ({ mode, last, pending: pending.map((x) => x.key), lastLength: lastRaw == null ? 0 : lastRaw.length }),
     };

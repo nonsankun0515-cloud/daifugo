@@ -12,8 +12,8 @@ globalThis.document = { getElementById: el, createElement: el };
 const FILES = [
   'js/cards.js', 'js/rules.js', 'js/engine.js', 'js/rating.js', 'js/ai.js',
   'js/sevens/engine.js', 'js/sevens/ai.js', 'js/speed/engine.js', 'js/speed/ai.js', 'js/speed/host.js', 'js/online-room.js',
-  'js/art.js', 'js/storage.js',
-  'tests/tests.js', 'tests/online_tests.js', 'tests/games_tests.js', 'tests/storage_tests.js', 'tests/ai_tests.js',
+  'js/art.js', 'js/storage.js', 'js/backup.js',
+  'tests/tests.js', 'tests/online_tests.js', 'tests/games_tests.js', 'tests/storage_tests.js', 'tests/backup_tests.js', 'tests/ai_tests.js',
 ];
 for (const f of FILES) require(path.join(ROOT, f));
 
@@ -27,6 +27,7 @@ for (const f of FILES) require(path.join(ROOT, f));
     ['オンライン', G.ONLINE_TEST_DONE.pass, G.ONLINE_TEST_DONE.total, G.ONLINE_TEST_DONE.failed],
     ['七並べ・スピード', G.GAMES_TEST_DONE.pass, G.GAMES_TEST_DONE.total, G.GAMES_TEST_DONE.failed],
     ['保存', G.STORAGE_TEST_DONE.pass, G.STORAGE_TEST_DONE.total, G.STORAGE_TEST_DONE.failed],
+    ['バックアップ', G.BACKUP_TEST_DONE.pass, G.BACKUP_TEST_DONE.total, G.BACKUP_TEST_DONE.failed],
     ['AI', ai.filter((l) => l.ok).length, ai.length, ai.filter((l) => !l.ok).map((l) => l.text)],
   ];
   let bad = 0;

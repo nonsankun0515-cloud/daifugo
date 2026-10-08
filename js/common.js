@@ -42,6 +42,22 @@
     return save();
   }
 
+  // ── バックアップ（画面は backup-ui.js）──
+  const RESTORED = 'daifugo.restored'; // 読み込んだあと再読み込みしたときの知らせ（sessionStorage）
+  /** バックアップの中身で置き換える（今のデータは .prerestore に残る）。成功したら画面を読み込み直す。kind：'import' / 'undo' */
+  function replaceStore(next, kind) {
+    const r = repo.replace(next);
+    if (r.ok) {
+      try { sessionStorage.setItem(RESTORED, kind || 'import'); } catch (e) { /* 知らせが出ないだけ */ }
+      location.reload();
+    }
+    return r;
+  }
+  /** バックアップを読み込む前のデータ（{ store, issues } か null） */
+  const prerestore = () => repo.peek(ST.KEYS.prerestore);
+  /** 書き出した日時を覚える（マイページに出す） */
+  function markBackup() { store.backupAt = Date.now(); save(); }
+
   // ── 保存の知らせ（画面の上の帯 #save-note）。対局のダイアログ（#overlay）とは別なので、対局の操作をじゃましない ──
   const SAVE_MSG = {
     quota: 'この端末に保存できていません（空き容量が足りないか、プライベートブラウズです）',
@@ -76,14 +92,20 @@
     const r = save();
     if (!r.ok) noteSave(r, '（もう一度試しましたが、保存できませんでした）');
   }
+  /** 保存できないあいだも、いまの記録をファイルに書き出せる（対局のダイアログが開いているときは開かない） */
+  function exportFromNote() {
+    if (!$('overlay').hidden) { UI.toast('いまのダイアログを閉じてから「書き出す」を押してください', 3000); return; }
+    if (D.BackupUI) D.BackupUI.openExport();
+  }
   function noteActions(reason) {
     if (reason === 'conflict' || reason === 'incompatible') return [{ label: '再読み込み', run: () => location.reload() }];
+    const out = { label: '書き出す', run: exportFromNote };
     if (reason === 'protect') {
       return [{ label: 'もう一度試す', run: () => { repo.retryProtect(); retrySave(); } },
-        { label: 'このまま保存', run: () => { repo.allowOverwrite(); retrySave(); } }];
+        { label: 'このまま保存', run: () => { repo.allowOverwrite(); retrySave(); } }, out];
     }
-    if (reason === 'unavailable') return [];
-    return [{ label: 'もう一度保存', run: retrySave }];
+    if (reason === 'unavailable') return [out];
+    return [{ label: 'もう一度保存', run: retrySave }, out];
   }
   /** 保存の結果を知らせる。同じ理由の失敗は続けて出さない（閉じたらそのまま）。失敗のあと保存できたら「保存できました」 */
   function noteSave(r, again) {
@@ -102,8 +124,11 @@
     if (b.mode !== 'ok') return noteSave({ ok: false, reason: b.mode });
     if (b.commit && !b.commit.ok) return noteSave(b.commit);
     const kept = '（読めなかったデータは、この端末に残してあります）';
-    let msg = '';
-    if (b.status === 'recovered') msg = '保存データが読めなかったため、前回正常に読めたデータに戻しました' + kept;
+    let msg = '', restored = null;
+    try { restored = sessionStorage.getItem(RESTORED); sessionStorage.removeItem(RESTORED); } catch (e) { /* 使えない環境 */ }
+    if (restored === 'import') msg = 'バックアップを読み込みました。読み込む前のデータは、マイページの「1つ前のデータに戻す」で戻せます';
+    else if (restored === 'undo') msg = '1つ前のデータに戻しました';
+    else if (b.status === 'recovered') msg = '保存データが読めなかったため、前回正常に読めたデータに戻しました' + kept;
     else if (b.status === 'corrupt') msg = '保存データが読めなかったため、はじめから始めます' + kept;
     else if (b.status === 'repaired') {
       const labels = Array.from(new Set(b.issues.filter((x) => x.level === 'repair').map((x) => x.label)));
@@ -402,7 +427,7 @@
   D.Games = D.Games || {};
   D.Books = D.Books || {};
   D.Common = {
-    store, settings, save, saveMatch, saveStatus: () => repo.status(), applySettings, toggleSound, playerName, LEVEL_LABEL, SPEEDS,
+    store, settings, save, saveMatch, saveStatus: () => repo.status(), replaceStore, prerestore, markBackup, applySettings, toggleSound, playerName, LEVEL_LABEL, SPEEDS,
     showScreen, onShow, visible, seg, toggle, row, section,
     ratingOf, recordRating, applyRatedLocal, abandonRatedLocal, abandonNote, rateNote, rateBoxHTML, animateRate, fmtExp, pct,
     openRatedDialog, askAbandon, finalHTML, ptsHTML,
