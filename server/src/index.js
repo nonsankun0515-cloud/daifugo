@@ -11,9 +11,10 @@ import '../../js/sevens/ai.js';
 import '../../js/speed/engine.js';
 import '../../js/speed/ai.js';
 import '../../js/speed/host.js';
+import '../../js/rating-ledger.js';
 import '../../js/online-room.js';
 
-const { RoomCore, Rating } = globalThis.DFG;
+const { RoomCore, Rating, RatingLedger } = globalThis.DFG;
 
 // 接続を受け付けるページ（公開アプリ版と開発用）
 const ALLOWED_ORIGINS = new Set([
@@ -46,9 +47,12 @@ export class Room extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.core = null;
+    this.flushFails = 0; // Ratings に送れなかった回数（送り直すまでの間を延ばす）
     ctx.blockConcurrencyWhile(async () => {
       const saved = await ctx.storage.get('room');
       if (saved) this.core = RoomCore.fromJSON(saved);
+      // 精算に ID がなかった頃の部屋：付けた ID をすぐ保存する（次に読み込んでも同じ ID で送り直せるように）
+      if (this.core && this.core.dirty) { delete this.core.dirty; await this.persist(); }
     });
   }
 
@@ -119,8 +123,9 @@ export class Room extends DurableObject {
       this.sendView(ws, false);
       return;
     }
-    await this.flushRatings();
+    // 先に部屋（試合の結果と未送信の精算）を保存してから Ratings に送る。送ったあとに落ちても、同じ ID で送り直すだけ
     await this.persist();
+    await this.flushRatings();
     this.broadcast(withEvents);
     await this.schedule();
   }
@@ -145,9 +150,12 @@ export class Room extends DurableObject {
     const now = Date.now();
     const moved = this.core.connectedHumans() > 0 && this.core.aiStep(now);
     if (moved) {
-      await this.flushRatings();
       await this.persist();
+      await this.flushRatings();
       this.broadcast(true);
+    } else if (this.core.ratingOut.length) {
+      // 送れていない精算をもう一度（だれもいなくなっても送る。送り終わるまで部屋は片付けない）
+      await this.flushRatings();
     } else if (this.ctx.getWebSockets().length === 0 && now - this.core.updatedAt > DAY - 60000) {
       // 1日だれも来ない部屋は片付ける
       await this.ctx.storage.deleteAll();
@@ -164,28 +172,30 @@ export class Room extends DurableObject {
     try { return await this.ratings().lookup(cid, game); } catch (e) { console.error('rating lookup', e); return null; }
   }
 
-  /** 部屋で決まったレート変動を保存する（失敗したら次の機会にもう一度） */
+  /** 部屋で決まった精算を Ratings に送る。答えが来たものだけ取り除いて保存（答えが来なければ、同じ ID のまま次にもう一度） */
   async flushRatings() {
     const core = this.core;
     if (!core || !core.ratingOut.length) return;
-    const out = core.ratingOut.slice();
+    let res;
     try {
-      const saved = await this.ratings().record(out);
-      core.ratingOut.splice(0, out.length);
-      for (const r of saved) {
-        const m = core.member(r.cid);
-        if (m) { m.rating = r.r; m.matches = r.n; }
-      }
+      res = await this.ratings().record(core.ratingOut.slice(0, RatingLedger.MAX_BATCH));
     } catch (e) {
+      this.flushFails++;
       console.error('rating record', e);
+      return;
     }
+    this.flushFails = 0;
+    if (core.ackRatings(res)) await this.persist();
   }
 
   async schedule() {
     if (!this.core) return;
     const now = Date.now();
     const d = this.core.connectedHumans() > 0 ? this.core.nextAiDelay(now) : null;
-    await this.ctx.storage.setAlarm(now + (d === null ? DAY : Math.max(50, d)));
+    let at = now + (d === null ? DAY : Math.max(50, d));
+    // 送れていない精算があれば、少し待ってから送り直す（失敗が続くほど間を延ばす。最大10分）
+    if (this.core.ratingOut.length) at = Math.min(at, now + RatingLedger.retryDelay(Math.max(1, this.flushFails)));
+    await this.ctx.storage.setAlarm(at);
   }
 
   async persist() {
@@ -224,21 +234,11 @@ export class Ratings extends DurableObject {
     return v ? { r: v.r, n: v.n } : { r: Rating.START, n: 0 };
   }
 
-  /** list: [{ cid, game, delta }] → [{ cid, game, r, n }] */
+  /**
+   * 精算を反映する。list: [{ eventId, cid, game, delta, at }] → [{ eventId, status, cid, game, r, n }]
+   * 同じ eventId は何度来ても1回だけ（反映済みの印 e:<eventId> と、レートを1回の put で書く）。くわしくは js/rating-ledger.js
+   */
   async record(list) {
-    const out = [];
-    for (const it of Array.isArray(list) ? list.slice(0, 12) : []) {
-      const delta = Math.round(Number(it && it.delta));
-      if (typeof it.cid !== 'string' || !it.cid || !Number.isFinite(delta) || Math.abs(delta) > 400) continue;
-      const k = await this.key(it.cid, it.game);
-      const v = (await this.ctx.storage.get(k)) || { r: Rating.START, n: 0, best: Rating.START };
-      v.r += delta;
-      v.n += 1;
-      v.best = Math.max(v.best || Rating.START, v.r);
-      v.at = Date.now();
-      await this.ctx.storage.put(k, v);
-      out.push({ cid: it.cid, game: it.game, r: v.r, n: v.n });
-    }
-    return out;
+    return RatingLedger.apply(this.ctx.storage, list, Date.now(), (cid, game) => this.key(cid, game), Rating.START);
   }
 }

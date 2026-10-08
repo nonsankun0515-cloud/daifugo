@@ -11,15 +11,15 @@ globalThis.document = { getElementById: el, createElement: el };
 
 const FILES = [
   'js/cards.js', 'js/rules.js', 'js/engine.js', 'js/rating.js', 'js/ai.js',
-  'js/sevens/engine.js', 'js/sevens/ai.js', 'js/speed/engine.js', 'js/speed/ai.js', 'js/speed/host.js', 'js/online-room.js',
+  'js/sevens/engine.js', 'js/sevens/ai.js', 'js/speed/engine.js', 'js/speed/ai.js', 'js/speed/host.js', 'js/rating-ledger.js', 'js/online-room.js',
   'js/art.js', 'js/storage.js', 'js/backup.js',
-  'tests/tests.js', 'tests/online_tests.js', 'tests/games_tests.js', 'tests/storage_tests.js', 'tests/backup_tests.js', 'tests/ai_tests.js',
+  'tests/tests.js', 'tests/online_tests.js', 'tests/games_tests.js', 'tests/storage_tests.js', 'tests/backup_tests.js', 'tests/ledger_tests.js', 'tests/ai_tests.js',
 ];
 for (const f of FILES) require(path.join(ROOT, f));
 
 (async function () {
   const t0 = Date.now();
-  while (!globalThis.AI_TEST_DONE && Date.now() - t0 < 600000) await new Promise((r) => setTimeout(r, 200));
+  while (!(globalThis.AI_TEST_DONE && globalThis.LEDGER_TEST_DONE) && Date.now() - t0 < 600000) await new Promise((r) => setTimeout(r, 200));
   const G = globalThis;
   const ai = G.AI_TEST_DONE || [{ ok: false, text: 'AIテストが終わりませんでした' }];
   const groups = [
@@ -28,6 +28,7 @@ for (const f of FILES) require(path.join(ROOT, f));
     ['七並べ・スピード', G.GAMES_TEST_DONE.pass, G.GAMES_TEST_DONE.total, G.GAMES_TEST_DONE.failed],
     ['保存', G.STORAGE_TEST_DONE.pass, G.STORAGE_TEST_DONE.total, G.STORAGE_TEST_DONE.failed],
     ['バックアップ', G.BACKUP_TEST_DONE.pass, G.BACKUP_TEST_DONE.total, G.BACKUP_TEST_DONE.failed],
+    ['レートの精算', (G.LEDGER_TEST_DONE || { pass: 0 }).pass, (G.LEDGER_TEST_DONE || { total: 1 }).total, (G.LEDGER_TEST_DONE || { failed: ['終わりませんでした'] }).failed],
     ['AI', ai.filter((l) => l.ok).length, ai.length, ai.filter((l) => !l.ok).map((l) => l.text)],
   ];
   let bad = 0;

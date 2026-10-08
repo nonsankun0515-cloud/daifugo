@@ -169,6 +169,13 @@
     return game === 'sevens' ? D.Sevens : game === 'speed' ? D.Speed : D.Engine;
   }
 
+  /** 試合ID（レートの精算の ID のもと）。試合を始めるときに作る（Workers は読み込み時の乱数が禁止なので、ここでだけ） */
+  function newMatchId(code, now) {
+    const c = globalThis.crypto;
+    const rnd = c && c.randomUUID ? c.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 12);
+    return 'm-' + code + '-' + (now || 0).toString(36) + '-' + rnd;
+  }
+
   // ─────────────────────────────────────────────
   // 部屋
   // ─────────────────────────────────────────────
@@ -186,7 +193,7 @@
       this.updatedAt = 0;
       this.chatLog = [];
       this.chatSeq = 0;
-      this.ratingOut = []; // サーバーが保存するレート変動 { cid, game, delta }
+      this.ratingOut = []; // サーバーが Ratings に送るレートの精算 { eventId, cid, game, delta, at, reason }（rating-ledger.js）
     }
 
     get adapter() { return ADAPTERS[this.game || 'daifugo']; }
@@ -206,6 +213,12 @@
       r.S = o.S ? engineOf(r.game).deserialize(o.S) : null;
       if (!Array.isArray(r.chatLog)) r.chatLog = [];
       if (!Array.isArray(r.ratingOut)) r.ratingOut = [];
+      // 精算に ID がない頃の部屋（2026-10-09 より前）：一度だけ ID を付ける（付けたらサーバーがすぐ保存する＝次に読んでも同じ ID）
+      const info = r.S && r.S.rated;
+      if (info && info.online && !info.matchId) { info.matchId = 'm-' + o.code + '-' + (o.updatedAt || 0).toString(36); r.dirty = true; }
+      r.ratingOut.forEach((it, i) => {
+        if (it && !it.eventId) { it.eventId = 'legacy-' + o.code + '-' + (o.updatedAt || 0).toString(36) + '-' + i; it.at = o.updatedAt || 0; r.dirty = true; }
+      });
       r.settings = Object.assign({}, r.adapter.defaults, r.settings);
       if (!r.chatSeq) r.chatSeq = r.chatLog.length ? r.chatLog[r.chatLog.length - 1].id : 0;
       return r;
@@ -294,7 +307,7 @@
       const gone = this.members.splice(i, 1)[0];
       if (this.phase === 'playing') {
         const s = this.seatOf(cid);
-        if (s >= 0) { this.abandon(s, gone); this.toAI(s, now); }
+        if (s >= 0) { this.abandon(s, gone, now); this.toAI(s, now); }
         if (!this.members.length) { this.phase = 'lobby'; this.seats = []; this.S = null; this.lastEvents = []; }
       }
       this.touch(now);
@@ -359,7 +372,8 @@
       if (rated) {
         const base = seats.map((s) => (s.type === 'human' ? ratingOf(this.member(s.cid)) : rc.ai[s.level] || rc.ai.normal));
         const matches = seats.map((s) => (s.type === 'human' ? (this.member(s.cid).matches || 0) : 0));
-        info = { online: true, base, matches, results: seats.map(() => null), finished: false };
+        // matchId：この試合の精算の ID のもと（部屋コードは使い回されるので、試合ごとに作る）
+        info = { online: true, matchId: newMatchId(this.code, now), base, matches, results: seats.map(() => null), finished: false };
       }
       this.S = A.create({
         rules: rated ? rc.rules() : A.normalizeRules(rules),
@@ -379,7 +393,7 @@
       const seat = this.seatOf(cid);
       if (seat < 0) return { ok: false, error: '席がありません' };
       this.lastEvents = this.adapter.act(this.S, seat, action, this, now);
-      this.finishRated();
+      this.finishRated(now);
       this.touch(now);
       return { ok: true };
     }
@@ -407,7 +421,7 @@
       const ev = this.adapter.tick(this, now);
       if (!ev) return false;
       this.lastEvents = ev;
-      this.finishRated();
+      this.finishRated(now);
       this.touch(now);
       return true;
     }
@@ -429,7 +443,7 @@
 
     // ── レート戦 ──
     /** 試合が終わったら、最初から最後まで座っていた人のレートを決める */
-    finishRated() {
+    finishRated(now) {
       const S = this.S, info = S && S.rated;
       if (!info || info.finished || !S.matchOver) return;
       info.finished = true;
@@ -438,23 +452,41 @@
         if (!st.ratedCid || st.type !== 'human' || st.cid !== st.ratedCid || info.results[i]) return;
         const r = all[i];
         info.results[i] = { name: st.name, before: r.before, after: r.after, delta: r.delta, expected: r.expected, total: r.total };
-        this.pushRating(st.ratedCid, r.delta);
+        this.pushRating(st.ratedCid, r.delta, null, i, now, 'completed');
       });
     }
 
     /** 途中で部屋を出た人：棄権（得点のゲームは残りを最下位、勝ち負けのゲームは負け） */
-    abandon(s, member) {
+    abandon(s, member, now) {
       const S = this.S, info = S && S.rated, st = this.seats[s];
       if (!info || info.finished || !st || !st.ratedCid || st.cid !== st.ratedCid || info.results[s]) return;
       const r = RT.abandonResult(S, s, info.base, info.matches[s]);
       info.results[s] = Object.assign({ name: st.name, abandoned: true }, r);
-      this.pushRating(st.ratedCid, r.delta, member);
+      this.pushRating(st.ratedCid, r.delta, member, s, now, 'abandoned');
     }
 
-    pushRating(cid, delta, member) {
-      this.ratingOut.push({ cid, game: this.game, delta });
+    /** 精算を1つ積む。eventId は「試合ID:席」（同じ試合の同じ席は1回だけ。送り直しても Ratings が見分ける） */
+    pushRating(cid, delta, member, seat, now, reason) {
+      const info = this.S && this.S.rated;
+      this.ratingOut.push({ eventId: (info && info.matchId) + ':' + seat, cid, game: this.game, delta, at: now || 0, reason });
       const m = member || this.member(cid);
       if (m) { m.rating = ratingOf(m) + delta; m.matches = (m.matches || 0) + 1; }
+    }
+
+    /** Ratings の答え（rating-ledger.js の apply の戻り値）で、片付いた精算を取り除き、表示するレートを正しい値にする。変わったら true */
+    ackRatings(results) {
+      const L = D.RatingLedger;
+      let changed = false;
+      for (const res of Array.isArray(results) ? results : []) {
+        if (!res || !L.settled(res.status)) continue;
+        const i = this.ratingOut.findIndex((it) => it.eventId === res.eventId);
+        if (i < 0) continue;
+        this.ratingOut.splice(i, 1);
+        changed = true;
+        const m = this.member(res.cid);
+        if (m && (res.status === 'applied' || res.status === 'duplicate')) { m.rating = res.r; m.matches = res.n; }
+      }
+      return changed;
     }
 
     // ── 各プレイヤーに送る内容（他人の手札は伏せる） ──
